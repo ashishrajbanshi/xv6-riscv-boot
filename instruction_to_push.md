@@ -9,6 +9,9 @@ Now, our main branch name is riscv. So, everyone on their branch can push their 
 
 # How to push
 
+Note: Always remember to pull everything before adding
+git pull
+
 1.
 Try this when you want to push all the changes done in your branch
 
