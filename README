@@ -2,6 +2,13 @@ xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
 
+PROJECT NOTE
+
+This repository has been extended for a boot-latency and cold-start
+measurement study.  The original xv6 README is preserved below.  For a
+summary of the research-specific kernel, measurement, and trigger-harness
+changes, see PROJECT_CHANGES.md.
+
 ACKNOWLEDGMENTS  
 
 xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer

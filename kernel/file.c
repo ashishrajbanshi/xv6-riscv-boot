@@ -19,6 +19,8 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+static int fs_initialized = 0;
+
 void
 fileinit(void)
 {
@@ -30,6 +32,16 @@ struct file*
 filealloc(void)
 {
   struct file *f;
+
+  if(!fs_initialized){
+    binit();
+    iinit();
+    fileinit();
+#ifndef NODISK
+    virtio_disk_init();
+#endif
+    fs_initialized = 1;
+  }
 
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){

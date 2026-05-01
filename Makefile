@@ -61,7 +61,8 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+OPT ?= -O
+CFLAGS = -Wall -Werror -Wno-unknown-attributes $(OPT) -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -march=rv64gc
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
@@ -75,6 +76,9 @@ CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+ifdef NODISK
+CFLAGS += -DNODISK
+endif
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
@@ -170,11 +174,19 @@ CPUS := 3
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
+ifndef NODISK
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+endif
 
-qemu: check-qemu-version $K/kernel fs.img
+ifdef NODISK
+QEMU_DEPS = check-qemu-version $K/kernel
+else
+QEMU_DEPS = check-qemu-version $K/kernel fs.img
+endif
+
+qemu: $(QEMU_DEPS)
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv

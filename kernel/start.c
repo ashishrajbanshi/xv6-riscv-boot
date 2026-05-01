@@ -61,6 +61,6 @@ timerinit()
   // allow supervisor to use stimecmp and time.
   w_mcounteren(r_mcounteren() | 2);
   
-  // ask for the very first timer interrupt.
-  w_stimecmp(r_time() + 1000000);
+  // Experiment G2: timer NOT armed here — each hart arms it in main()
+  // just before scheduler(), so no interrupts fire during boot.
 }

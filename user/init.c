@@ -15,6 +15,7 @@ int
 main(void)
 {
   int pid, wpid;
+  int t_init = uptime();   // capture tick count before console is open
 
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);
@@ -22,6 +23,8 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+
+  fprintf(2, "[BOOT] user_init reached at uptime tick %d\n", t_init);
 
   for(;;){
     printf("init: starting sh\n");
