@@ -1,0 +1,6 @@
+run,status_code,execution_time_ms,total_kernel_ticks,total_kernel_ms,kinit_ms,vm_init_ms,procinit_ms,userinit_ms,boot_completed,timed_out,return_code,stopped_after_boot,panic
+1,200,7929.863214492798,,,,,,,False,True,0,False,False
+2,200,2067.6441192626953,,,,,,,False,True,0,False,False
+3,200,5188.53497505188,,,,,,,False,True,0,False,False
+4,200,5048.895359039307,,,,,,,False,True,0,False,False
+5,200,5054.795265197754,,,,,,,False,True,0,False,False

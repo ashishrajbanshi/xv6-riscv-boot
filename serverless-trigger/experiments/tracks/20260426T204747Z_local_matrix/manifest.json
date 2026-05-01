@@ -1,0 +1,243 @@
+{
+  "created_at_utc": "2026-04-26T20:48:48Z",
+  "runs": 5,
+  "memories": [
+    "32M",
+    "64M",
+    "128M"
+  ],
+  "cpus": "1",
+  "timeout_sec": "5",
+  "include_http": true,
+  "track_dir": "experiments/tracks/20260426T204747Z_local_matrix",
+  "steps": [
+    {
+      "step_name": "local-trigger-32M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_boot.py",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_local_32m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "32M"
+      },
+      "returncode": 0,
+      "duration_ms": 25460.749864578247,
+      "stdout": "saved_json=experiments/results/local/20260426T204812Z_matrix_local_32m.json\nsaved_csv=experiments/results/local/20260426T204812Z_matrix_local_32m.csv\nruns=5 successful_boots=0\ntrigger_time_ms mean=5057.947 min=2067.644 max=7929.863\nrun=1 status=200 trigger_ms=7929.863 kernel_ms=None return_code=0 timed_out=True boot_completed=False panic=False\nrun=2 status=200 trigger_ms=2067.644 kernel_ms=None return_code=0 timed_out=True boot_completed=False panic=False\nrun=3 status=200 trigger_ms=5188.535 kernel_ms=None return_code=0 timed_out=True boot_completed=False panic=False\nrun=4 status=200 trigger_ms=5048.895 kernel_ms=None return_code=0 timed_out=True boot_completed=False panic=False\nrun=5 status=200 trigger_ms=5054.795 kernel_ms=None return_code=0 timed_out=True boot_completed=False panic=False\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/local/20260426T204812Z_matrix_local_32m.json",
+        "csv": "experiments/results/local/20260426T204812Z_matrix_local_32m.csv"
+      }
+    },
+    {
+      "step_name": "http-noop-32M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/noop",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_noop_32m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "32M"
+      },
+      "returncode": 0,
+      "duration_ms": 176.8820285797119,
+      "stdout": "saved_json=experiments/results/http/20260426T204813Z_matrix_noop_32m.json\nsaved_csv=experiments/results/http/20260426T204813Z_matrix_noop_32m.csv\nroundtrip_ms mean=4.292 min=0.446 max=19.089\nhandler_execution_time_ms mean=0.000 min=0.000 max=0.000\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204813Z_matrix_noop_32m.json",
+        "csv": "experiments/results/http/20260426T204813Z_matrix_noop_32m.csv"
+      }
+    },
+    {
+      "step_name": "http-trigger-32M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/trigger",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_trigger_32m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "32M"
+      },
+      "returncode": 0,
+      "duration_ms": 25565.45090675354,
+      "stdout": "saved_json=experiments/results/http/20260426T204839Z_matrix_trigger_32m.json\nsaved_csv=experiments/results/http/20260426T204839Z_matrix_trigger_32m.csv\nroundtrip_ms mean=5087.590 min=5048.854 max=5116.076\nhandler_execution_time_ms mean=5082.405 min=5047.237 max=5114.679\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204839Z_matrix_trigger_32m.json",
+        "csv": "experiments/results/http/20260426T204839Z_matrix_trigger_32m.csv"
+      }
+    },
+    {
+      "step_name": "local-trigger-64M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_boot.py",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_local_64m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "64M"
+      },
+      "returncode": 0,
+      "duration_ms": 1525.996446609497,
+      "stdout": "saved_json=experiments/results/local/20260426T204840Z_matrix_local_64m.json\nsaved_csv=experiments/results/local/20260426T204840Z_matrix_local_64m.csv\nruns=5 successful_boots=5\ntrigger_time_ms mean=275.284 min=264.371 max=289.773\nkernel_boot_ms mean=102.293 min=99.762 max=105.602\nrun=1 status=200 trigger_ms=270.361 kernel_ms=100.3613 return_code=0 timed_out=False boot_completed=True panic=True\nrun=2 status=200 trigger_ms=264.371 kernel_ms=99.7621 return_code=0 timed_out=False boot_completed=True panic=True\nrun=3 status=200 trigger_ms=269.869 kernel_ms=100.6474 return_code=0 timed_out=False boot_completed=True panic=True\nrun=4 status=200 trigger_ms=289.773 kernel_ms=105.0917 return_code=0 timed_out=False boot_completed=True panic=True\nrun=5 status=200 trigger_ms=282.044 kernel_ms=105.60170000000001 return_code=0 timed_out=False boot_completed=True panic=True\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/local/20260426T204840Z_matrix_local_64m.json",
+        "csv": "experiments/results/local/20260426T204840Z_matrix_local_64m.csv"
+      }
+    },
+    {
+      "step_name": "http-noop-64M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/noop",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_noop_64m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "64M"
+      },
+      "returncode": 0,
+      "duration_ms": 119.0485954284668,
+      "stdout": "saved_json=experiments/results/http/20260426T204842Z_matrix_noop_64m.json\nsaved_csv=experiments/results/http/20260426T204842Z_matrix_noop_64m.csv\nroundtrip_ms mean=3.858 min=0.377 max=17.433\nhandler_execution_time_ms mean=0.000 min=0.000 max=0.000\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204842Z_matrix_noop_64m.json",
+        "csv": "experiments/results/http/20260426T204842Z_matrix_noop_64m.csv"
+      }
+    },
+    {
+      "step_name": "http-trigger-64M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/trigger",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_trigger_64m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "64M"
+      },
+      "returncode": 0,
+      "duration_ms": 1673.4349727630615,
+      "stdout": "saved_json=experiments/results/http/20260426T204843Z_matrix_trigger_64m.json\nsaved_csv=experiments/results/http/20260426T204843Z_matrix_trigger_64m.csv\nroundtrip_ms mean=310.505 min=273.975 max=371.314\nhandler_execution_time_ms mean=305.587 min=272.338 max=370.029\nkernel_boot_ms mean=117.605 min=104.800 max=135.815\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204843Z_matrix_trigger_64m.json",
+        "csv": "experiments/results/http/20260426T204843Z_matrix_trigger_64m.csv"
+      }
+    },
+    {
+      "step_name": "local-trigger-128M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_boot.py",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_local_128m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "128M"
+      },
+      "returncode": 0,
+      "duration_ms": 1543.4298515319824,
+      "stdout": "saved_json=experiments/results/local/20260426T204845Z_matrix_local_128m.json\nsaved_csv=experiments/results/local/20260426T204845Z_matrix_local_128m.csv\nruns=5 successful_boots=5\ntrigger_time_ms mean=282.126 min=276.931 max=285.193\nkernel_boot_ms mean=105.516 min=104.489 max=106.888\nrun=1 status=200 trigger_ms=284.545 kernel_ms=104.9528 return_code=0 timed_out=False boot_completed=True panic=True\nrun=2 status=200 trigger_ms=281.254 kernel_ms=106.8882 return_code=0 timed_out=False boot_completed=True panic=True\nrun=3 status=200 trigger_ms=285.193 kernel_ms=104.708 return_code=0 timed_out=False boot_completed=True panic=True\nrun=4 status=200 trigger_ms=276.931 kernel_ms=104.4885 return_code=0 timed_out=False boot_completed=True panic=True\nrun=5 status=200 trigger_ms=282.707 kernel_ms=106.5448 return_code=0 timed_out=False boot_completed=True panic=True\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/local/20260426T204845Z_matrix_local_128m.json",
+        "csv": "experiments/results/local/20260426T204845Z_matrix_local_128m.csv"
+      }
+    },
+    {
+      "step_name": "http-noop-128M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/noop",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_noop_128m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "128M"
+      },
+      "returncode": 0,
+      "duration_ms": 121.52504920959473,
+      "stdout": "saved_json=experiments/results/http/20260426T204846Z_matrix_noop_128m.json\nsaved_csv=experiments/results/http/20260426T204846Z_matrix_noop_128m.csv\nroundtrip_ms mean=4.059 min=0.499 max=17.831\nhandler_execution_time_ms mean=0.000 min=0.000 max=0.000\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204846Z_matrix_noop_128m.json",
+        "csv": "experiments/results/http/20260426T204846Z_matrix_noop_128m.csv"
+      }
+    },
+    {
+      "step_name": "http-trigger-128M",
+      "argv": [
+        "/usr/bin/python3",
+        "measure_http.py",
+        "--url",
+        "http://127.0.0.1:8080/trigger",
+        "--runs",
+        "5",
+        "--label",
+        "matrix_trigger_128m"
+      ],
+      "env": {
+        "XV6_BOOT_TIMEOUT_SEC": "5",
+        "XV6_CPUS": "1",
+        "XV6_MEMORY": "128M"
+      },
+      "returncode": 0,
+      "duration_ms": 1611.2546920776367,
+      "stdout": "saved_json=experiments/results/http/20260426T204848Z_matrix_trigger_128m.json\nsaved_csv=experiments/results/http/20260426T204848Z_matrix_trigger_128m.csv\nroundtrip_ms mean=298.194 min=282.509 max=347.687\nhandler_execution_time_ms mean=293.285 min=281.163 max=329.003\nkernel_boot_ms mean=112.695 min=105.072 max=139.160\n",
+      "stderr": "",
+      "saved_outputs": {
+        "json": "experiments/results/http/20260426T204848Z_matrix_trigger_128m.json",
+        "csv": "experiments/results/http/20260426T204848Z_matrix_trigger_128m.csv"
+      }
+    }
+  ]
+}

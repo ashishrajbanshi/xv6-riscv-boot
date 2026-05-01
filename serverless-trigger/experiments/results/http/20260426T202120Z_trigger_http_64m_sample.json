@@ -1,0 +1,92 @@
+{
+  "created_at_utc": "20260426T202120Z",
+  "label": "trigger_http_64m_sample",
+  "url": "http://127.0.0.1:8080/trigger",
+  "runs": 3,
+  "runtime_config": {
+    "XV6_MEMORY": "64M",
+    "XV6_CPUS": "1",
+    "XV6_BOOT_TIMEOUT_SEC": "5",
+    "XV6_LOG_LIMIT": "500",
+    "XV6_TICK_HZ": "10000000",
+    "XV6_STOP_ON_BOOT": "1",
+    "XV6_BOOT_GRACE_SEC": "0.05"
+  },
+  "roundtrip_ms": {
+    "mean": 315.9934679667155,
+    "min": 275.2492427825928,
+    "max": 387.48741149902344
+  },
+  "handler_execution_time_ms": {
+    "mean": 306.4433733622233,
+    "min": 273.728609085083,
+    "max": 361.92893981933594
+  },
+  "kernel_boot_ms": {
+    "mean": 122.02043333333334,
+    "min": 107.0918,
+    "max": 148.3706
+  },
+  "results": [
+    {
+      "http_status": 200,
+      "roundtrip_ms": 387.48741149902344,
+      "handler_status_code": 200,
+      "handler_execution_time_ms": 361.92893981933594,
+      "timed_out": false,
+      "return_code": 0,
+      "boot_completed": true,
+      "total_kernel_ticks": 1483706,
+      "total_kernel_ms": 148.3706,
+      "kinit_ms": 144.8988,
+      "vm_init_ms": 2.0815,
+      "procinit_ms": 0.0541,
+      "userinit_ms": 0.2985,
+      "panic": true,
+      "stdout_excerpt": "\n[BOOT] start=11693\n[BOOT] kinit         1448988 ticks\n[BOOT] vm_init       20815 ticks\n[BOOT] procinit      541 ticks\n[BOOT] userinit      2985 ticks\n[BOOT] total_kernel  1483706 ticks\nscause=0xd sepc=0x8000287e stval=0x8\npanic: kerneltrap\n",
+      "stderr_excerpt": "qemu-system-riscv64: terminating on signal 15 from pid 47002 (python3)\n",
+      "error": null,
+      "run": 1
+    },
+    {
+      "http_status": 200,
+      "roundtrip_ms": 285.2437496185303,
+      "handler_status_code": 200,
+      "handler_execution_time_ms": 283.672571182251,
+      "timed_out": false,
+      "return_code": 0,
+      "boot_completed": true,
+      "total_kernel_ticks": 1105989,
+      "total_kernel_ms": 110.5989,
+      "kinit_ms": 107.0132,
+      "vm_init_ms": 2.2157999999999998,
+      "procinit_ms": 0.0653,
+      "userinit_ms": 0.2477,
+      "panic": true,
+      "stdout_excerpt": "\n[BOOT] start=3719\n[BOOT] kinit         1070132 ticks\n[BOOT] vm_init       22158 ticks\n[BOOT] procinit      653 ticks\n[BOOT] userinit      2477 ticks\n[BOOT] total_kernel  1105989 ticks\nscause=0xd sepc=0x8000287e stval=0x8\npanic: kerneltrap\n",
+      "stderr_excerpt": "qemu-system-riscv64: terminating on signal 15 from pid 47002 (python3)\n",
+      "error": null,
+      "run": 2
+    },
+    {
+      "http_status": 200,
+      "roundtrip_ms": 275.2492427825928,
+      "handler_status_code": 200,
+      "handler_execution_time_ms": 273.728609085083,
+      "timed_out": false,
+      "return_code": 0,
+      "boot_completed": true,
+      "total_kernel_ticks": 1070918,
+      "total_kernel_ms": 107.0918,
+      "kinit_ms": 103.64410000000001,
+      "vm_init_ms": 2.0802,
+      "procinit_ms": 0.0547,
+      "userinit_ms": 0.2501,
+      "panic": true,
+      "stdout_excerpt": "\n[BOOT] start=3457\n[BOOT] kinit         1036441 ticks\n[BOOT] vm_init       20802 ticks\n[BOOT] procinit      547 ticks\n[BOOT] userinit      2501 ticks\n[BOOT] total_kernel  1070918 ticks\nscause=0xd sepc=0x8000287e stval=0x8\npanic: kerneltrap\n",
+      "stderr_excerpt": "qemu-system-riscv64: terminating on signal 15 from pid 47002 (python3)\n",
+      "error": null,
+      "run": 3
+    }
+  ]
+}
