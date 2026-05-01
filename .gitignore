@@ -16,3 +16,7 @@ kernel/kernel
 user/usys.S
 .gdbinit
 TAGS
+
+serverless-trigger/__pycache__
+serverless-trigger/deploy
+serverless-trigger/output.json
