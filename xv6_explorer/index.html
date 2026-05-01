@@ -1,0 +1,3148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xv6 RISC-V Boot Explorer</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RESET & CUSTOM PROPERTIES
+═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #07090f;
+  --bg1:        #0b0e18;
+  --bg2:        #0f1220;
+  --bg3:        #141828;
+  --bg4:        #1a2035;
+  --border:     rgba(255,255,255,0.07);
+  --border2:    rgba(255,255,255,0.12);
+
+  --text:       #dde2f0;
+  --text2:      #8892aa;
+  --text3:      #4a5570;
+  --text4:      #2a3050;
+
+  --m-color:    #e05c2e;
+  --m-bg:       rgba(224,92,46,0.1);
+  --m-border:   rgba(224,92,46,0.25);
+
+  --s-color:    #3a9de0;
+  --s-bg:       rgba(58,157,224,0.1);
+  --s-border:   rgba(58,157,224,0.25);
+
+  --u-color:    #9b6af0;
+  --u-bg:       rgba(155,106,240,0.1);
+  --u-border:   rgba(155,106,240,0.25);
+
+  --mem-color:  #2ec49a;
+  --mem-bg:     rgba(46,196,154,0.1);
+  --mem-border: rgba(46,196,154,0.25);
+
+  --asm-color:  #e8c040;
+  --asm-bg:     rgba(232,192,64,0.08);
+
+  --green:      #4caf74;
+  --red:        #e05050;
+  --yellow:     #e8c040;
+
+  --radius:     10px;
+  --radius2:    16px;
+  --sidebar-w:  260px;
+  --shadow:     0 4px 24px rgba(0,0,0,0.6);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════════════════ */
+#sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  z-index: 100;
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .chip {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--s-color);
+  background: var(--s-bg);
+  border: 1px solid var(--s-border);
+  border-radius: 99px;
+  padding: 3px 10px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+.sidebar-logo h2 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+.sidebar-logo p { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.nav-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text4);
+  padding: 16px 20px 6px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.15s;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-item.active {
+  background: rgba(58,157,224,0.08);
+  color: var(--s-color);
+  border-left-color: var(--s-color);
+}
+.nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--m-bg);
+  color: var(--m-color);
+  border: 1px solid var(--m-border);
+}
+
+/* hamburger */
+#hamburger {
+  display: none;
+  position: fixed;
+  top: 14px; left: 14px;
+  z-index: 200;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 4px;
+}
+#hamburger span {
+  display: block;
+  width: 20px; height: 2px;
+  background: var(--text);
+  border-radius: 1px;
+  transition: all 0.2s;
+}
+#overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 99;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════════════════ */
+#main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.page { display: none; min-height: 100vh; }
+.page.active { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
+   COMMON COMPONENTS
+═══════════════════════════════════════════════════════════════ */
+.page-hero {
+  padding: 48px 48px 32px;
+  background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.page-hero .hero-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 99px;
+  padding: 4px 14px;
+  margin-bottom: 14px;
+}
+.page-hero h1 {
+  font-size: clamp(24px, 3.5vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.page-hero p {
+  color: var(--text2);
+  max-width: 600px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.page-content { padding: 40px 48px 80px; }
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  margin-bottom: 24px;
+}
+.card-header {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.card-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  border: 1px solid var(--border);
+}
+.card-title { font-size: 15px; font-weight: 700; }
+.card-subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.card-body { padding: 22px; }
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid;
+}
+.badge-m { color: var(--m-color); background: var(--m-bg); border-color: var(--m-border); }
+.badge-s { color: var(--s-color); background: var(--s-bg); border-color: var(--s-border); }
+.badge-u { color: var(--u-color); background: var(--u-bg); border-color: var(--u-border); }
+.badge-g { color: var(--green); background: rgba(76,175,116,0.1); border-color: rgba(76,175,116,0.3); }
+.badge-y { color: var(--yellow); background: rgba(232,192,64,0.1); border-color: rgba(232,192,64,0.3); }
+
+code, .mono {
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #c8d8f8;
+}
+.code-block {
+  background: #050810;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  overflow-x: auto;
+  white-space: pre;
+  color: #c8d0e8;
+  position: relative;
+}
+.code-block .comment { color: #4a6040; }
+.code-block .kw { color: #c080e0; }
+.code-block .fn { color: #80b8f0; }
+.code-block .str { color: #80c060; }
+.code-block .num { color: #e0b060; }
+.code-block .reg { color: #e08860; }
+.code-block .csr { color: #60d0c0; }
+.code-block .hl { background: rgba(58,157,224,0.15); border-left: 3px solid var(--s-color); margin-left: -20px; padding-left: 17px; }
+.code-block .hl-warn { background: rgba(232,192,64,0.1); border-left: 3px solid var(--yellow); margin-left: -20px; padding-left: 17px; }
+
+.info-box {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border-left: 3px solid;
+  margin: 16px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.info-box.info { background: var(--s-bg); border-color: var(--s-color); color: #c0d8f0; }
+.info-box.warn { background: rgba(232,192,64,0.08); border-color: var(--yellow); color: #e0d0a0; }
+.info-box.tip  { background: var(--mem-bg); border-color: var(--mem-color); color: #b0e8d8; }
+.info-box.danger { background: rgba(224,80,80,0.08); border-color: var(--red); color: #e8b0b0; }
+.info-box-icon { font-size: 18px; flex-shrink: 0; }
+
+table.ref-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px;
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border);
+}
+table.ref-table th {
+  background: rgba(0,0,0,0.4);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+table.ref-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: top;
+  line-height: 1.5;
+}
+table.ref-table tr:last-child td { border-bottom: none; }
+table.ref-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border2), transparent);
+  margin: 32px 0;
+}
+.section-title {
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-desc { color: var(--text2); margin-bottom: 24px; font-size: 13.5px; line-height: 1.7; }
+
+/* ═══════════════════════════════════════════════════════════════
+   HOME PAGE
+═══════════════════════════════════════════════════════════════ */
+.boot-sequence-hero {
+  background: linear-gradient(135deg, #070b14 0%, #0a1020 50%, #080c18 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 48px 50px;
+  position: relative;
+  overflow: hidden;
+}
+.boot-sequence-hero::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(58,157,224,0.06) 0%, transparent 70%);
+  top: -200px; right: -100px;
+  pointer-events: none;
+}
+.hero-title {
+  font-size: clamp(28px, 4vw, 52px);
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+.hero-title span { color: var(--s-color); }
+.hero-subtitle { color: var(--text2); font-size: 16px; max-width: 540px; line-height: 1.7; margin-bottom: 28px; }
+.hero-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  padding: 10px 22px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s;
+  user-select: none;
+}
+.btn-primary { background: var(--s-color); border-color: var(--s-color); color: #fff; }
+.btn-primary:hover { background: #4aadf0; }
+.btn-outline { background: transparent; border-color: var(--border2); color: var(--text); }
+.btn-outline:hover { border-color: var(--s-color); color: var(--s-color); background: var(--s-bg); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+.home-flow {
+  display: flex; align-items: center; gap: 0;
+  padding: 32px 48px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+}
+.hf-node {
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+.hf-node:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.hf-icon { font-size: 22px; margin-bottom: 6px; }
+.hf-label { font-size: 11px; font-weight: 700; }
+.hf-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.hf-arrow {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0 6px;
+  gap: 2px;
+}
+.hf-arrow-line { width: 28px; height: 2px; background: var(--border2); }
+.hf-arrow-head { width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid var(--border2); margin-left: 21px; margin-top: -7px; }
+.hf-arrow-label { font-size: 9px; color: var(--text4); margin-top: 6px; white-space: nowrap; }
+
+.home-cards { padding: 40px 48px 60px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.home-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.home-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: var(--radius2) var(--radius2) 0 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.home-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: var(--shadow); }
+.home-card:hover::before { opacity: 1; }
+.home-card .hc-icon { font-size: 28px; margin-bottom: 12px; }
+.home-card .hc-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.home-card .hc-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.home-card .hc-arrow { position: absolute; top: 22px; right: 22px; color: var(--text4); font-size: 18px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   STAGES PAGE  – interactive stepper
+═══════════════════════════════════════════════════════════════ */
+.stepper-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  background: var(--bg1);
+  padding: 0 32px;
+}
+.stepper-tab {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  color: var(--text3);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
+}
+.stepper-tab:hover { color: var(--text); }
+.stepper-tab.active { color: var(--s-color); border-bottom-color: var(--s-color); }
+.stepper-tab .st-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+}
+.stepper-tab.active .st-num { background: var(--s-color); color: #fff; border-color: var(--s-color); }
+
+.stage-panel { display: none; }
+.stage-panel.active { display: grid; grid-template-columns: 1fr 380px; gap: 0; min-height: calc(100vh - 180px); }
+
+.stage-left { padding: 32px 36px; border-right: 1px solid var(--border); overflow-y: auto; }
+.stage-right { background: var(--bg1); padding: 28px 24px; overflow-y: auto; position: sticky; top: 0; height: calc(100vh - 180px); }
+
+.stage-title-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+.stage-num-badge {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  flex-shrink: 0;
+}
+.stage-main-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.stage-file { font-size: 12px; color: var(--text2); }
+.stage-desc { font-size: 13.5px; line-height: 1.75; color: var(--text2); margin-bottom: 24px; }
+
+.step-list { display: flex; flex-direction: column; gap: 12px; }
+.step-item {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0; margin-top: 1px;
+}
+.step-content .step-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.step-content .step-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* state panel on right */
+.state-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text4);
+  margin-bottom: 12px;
+}
+.state-panel-section { margin-bottom: 22px; }
+.csr-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 11.5px;
+}
+.csr-row:last-child { border-bottom: none; }
+.csr-name { font-family: monospace; font-weight: 600; width: 80px; flex-shrink: 0; }
+.csr-val { font-family: monospace; color: #8cb4f0; font-size: 11px; }
+.csr-changed { animation: csr-flash 0.8s ease; }
+@keyframes csr-flash { 0% { background: rgba(58,157,224,0.3); } 100% { background: transparent; } }
+
+.mode-indicator {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin-bottom: 16px;
+}
+.mode-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mode-label { font-size: 13px; font-weight: 700; }
+.mode-desc { font-size: 11px; color: var(--text2); margin-left: auto; }
+
+.stack-mini { margin-top: 8px; }
+.stack-row {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: monospace;
+  margin-bottom: 3px;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex; justify-content: space-between;
+}
+.stack-row.active { background: rgba(58,157,224,0.1); border-color: rgba(58,157,224,0.2); }
+
+/* ═══════════════════════════════════════════════════════════════
+   MEMORY MAP PAGE
+═══════════════════════════════════════════════════════════════ */
+.memmap-layout { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: calc(100vh - 160px); }
+.memmap-visual { border-right: 1px solid var(--border); padding: 24px 20px; overflow-y: auto; }
+.memmap-detail { padding: 24px 32px; overflow-y: auto; }
+
+.mem-bar-wrap { display: flex; flex-direction: column; gap: 2px; }
+.mem-bar {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 6px 10px;
+  transition: background 0.15s;
+  border: 1px solid transparent;
+}
+.mem-bar:hover { background: rgba(255,255,255,0.04); }
+.mem-bar.selected { background: rgba(58,157,224,0.08); border-color: rgba(58,157,224,0.2); }
+.mem-addr-label { font-family: monospace; font-size: 10px; color: var(--text3); width: 86px; flex-shrink: 0; }
+.mem-block {
+  height: 24px; border-radius: 4px;
+  display: flex; align-items: center; padding: 0 8px;
+  font-size: 10px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1;
+}
+.mem-block-gap { height: 12px; border-radius: 2px; background: rgba(255,255,255,0.02); flex: 1; }
+
+.mem-detail-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.mem-detail-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+.mem-detail-addr { font-family: monospace; font-size: 20px; font-weight: 700; color: var(--text); }
+.mem-detail-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.mem-detail-desc { color: var(--text2); font-size: 13.5px; line-height: 1.7; }
+.mem-detail-fields { margin-top: 18px; }
+.mem-field {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 12.5px;
+}
+.mem-field:last-child { border-bottom: none; }
+.mem-field-icon { font-size: 16px; flex-shrink: 0; }
+.mem-field-name { font-weight: 600; margin-bottom: 2px; }
+.mem-field-val { font-size: 11.5px; color: var(--text2); font-family: monospace; }
+
+/* ═══════════════════════════════════════════════════════════════
+   PRIVILEGE MODES PAGE
+═══════════════════════════════════════════════════════════════ */
+.priv-sim { max-width: 900px; }
+.priv-box-row { display: grid; grid-template-columns: 1fr 80px 1fr 80px 1fr; gap: 0; align-items: center; margin: 24px 0; }
+.priv-box-card {
+  border-radius: var(--radius2);
+  border: 1px solid;
+  padding: 20px 18px;
+  text-align: center;
+  transition: all 0.3s;
+}
+.priv-box-card.dimmed { opacity: 0.35; transform: scale(0.97); }
+.priv-box-card .pbc-level { font-size: 36px; font-weight: 900; margin-bottom: 6px; }
+.priv-box-card .pbc-name { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.priv-box-card .pbc-detail { font-size: 11.5px; color: var(--text2); line-height: 1.5; }
+.priv-box-card .pbc-fn { font-family: monospace; font-size: 11px; margin-top: 10px; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+.priv-trans-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 8px; }
+.priv-trans-line { width: 100%; height: 2px; background: var(--border2); }
+.priv-trans-arrowhead { width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 9px solid var(--border2); margin-left: 100%; margin-top: -8px; }
+.priv-trans-inst { font-size: 11px; font-family: monospace; font-weight: 700; text-align: center; margin-top: 8px; }
+.priv-trans-desc { font-size: 9px; color: var(--text4); text-align: center; white-space: nowrap; margin-top: 2px; }
+.priv-transition-active .priv-trans-line { background: var(--s-color); }
+.priv-transition-active .priv-trans-arrowhead { border-left-color: var(--s-color); }
+
+.priv-csr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; }
+.priv-csr-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.priv-csr-card .pcsr-name { font-family: monospace; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.priv-csr-card .pcsr-full { font-size: 11px; color: var(--text2); margin-bottom: 10px; }
+.priv-csr-field { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px; }
+.priv-csr-field:last-child { border-bottom: none; }
+.pcsr-field-name { color: var(--text2); }
+.pcsr-field-val { font-family: monospace; font-size: 10px; color: var(--asm-color); }
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT PLAYGROUND
+═══════════════════════════════════════════════════════════════ */
+.playground-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  height: calc(100vh - 160px);
+}
+.playground-left { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+.playground-code { flex: 1; overflow-y: auto; padding: 0; }
+.playground-controls {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg1);
+  flex-shrink: 0;
+}
+.playground-right { display: flex; flex-direction: column; overflow: hidden; }
+
+.pg-ctrl-btn {
+  padding: 7px 16px; border-radius: 8px; cursor: pointer;
+  font-size: 12px; font-weight: 700; border: 1px solid;
+  transition: all 0.15s; user-select: none; display: flex; align-items: center; gap: 6px;
+}
+.pg-ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pg-btn-back { background: transparent; border-color: var(--border2); color: var(--text2); }
+.pg-btn-back:not(:disabled):hover { border-color: var(--text); color: var(--text); }
+.pg-btn-next { background: var(--s-color); border-color: var(--s-color); color: #fff; }
+.pg-btn-next:not(:disabled):hover { background: #4aadf0; }
+.pg-btn-run { background: rgba(76,175,116,0.15); border-color: rgba(76,175,116,0.3); color: var(--green); }
+.pg-btn-run:not(:disabled):hover { background: rgba(76,175,116,0.25); }
+.pg-btn-reset { background: transparent; border-color: var(--border); color: var(--text3); }
+.pg-btn-reset:hover { border-color: var(--red); color: var(--red); }
+.pg-step-info { margin-left: auto; font-size: 12px; color: var(--text3); font-family: monospace; }
+
+.pg-progress {
+  height: 3px; background: rgba(255,255,255,0.06);
+  border-radius: 0;
+  transition: none;
+}
+.pg-progress-fill { height: 100%; background: var(--s-color); transition: width 0.3s; border-radius: 0; }
+
+/* code viewer rows */
+.pg-line {
+  display: flex; align-items: flex-start; gap: 0;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.pg-line:hover { background: rgba(255,255,255,0.02); }
+.pg-line.current-line { background: rgba(58,157,224,0.1); border-left: 3px solid var(--s-color); }
+.pg-line.executed { background: rgba(76,175,116,0.04); }
+.pg-line .pg-lnum {
+  width: 44px; flex-shrink: 0;
+  padding: 4px 12px 4px 16px;
+  font-family: monospace; font-size: 11px;
+  color: var(--text4); text-align: right;
+  user-select: none;
+}
+.pg-line .pg-lcode {
+  flex: 1;
+  padding: 4px 16px 4px 12px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  color: #c8d0e8;
+  white-space: pre;
+}
+.pg-line.current-line .pg-lnum { color: var(--s-color); }
+.pg-line.executed .pg-lnum { color: var(--green); }
+
+.pg-file-header {
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text3);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.pg-file-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* right panel of playground */
+.pg-panel-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2); flex-shrink: 0;
+}
+.pg-panel-tab {
+  padding: 10px 16px; font-size: 11px; font-weight: 600;
+  cursor: pointer; color: var(--text3);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.pg-panel-tab:hover { color: var(--text); }
+.pg-panel-tab.active { color: var(--s-color); border-bottom-color: var(--s-color); }
+.pg-panel-content { flex: 1; overflow-y: auto; padding: 16px; }
+.pg-panel-pane { display: none; }
+.pg-panel-pane.active { display: block; }
+
+.pg-desc-box {
+  background: rgba(58,157,224,0.06);
+  border: 1px solid rgba(58,157,224,0.15);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #c0d4f0;
+  margin-bottom: 14px;
+}
+
+.csr-display { display: flex; flex-direction: column; gap: 4px; }
+.csr-item {
+  display: grid; grid-template-columns: 90px 1fr;
+  gap: 8px; align-items: center;
+  padding: 6px 8px; border-radius: 6px;
+  font-size: 11.5px;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+.csr-item.changed { border-color: rgba(58,157,224,0.3); background: rgba(58,157,224,0.08); }
+.csr-item .ci-name { font-family: monospace; font-weight: 600; color: var(--text2); }
+.csr-item .ci-val { font-family: monospace; color: #8cb4f0; }
+.csr-item.changed .ci-val { color: var(--s-color); font-weight: 700; }
+.csr-item .ci-desc { font-size: 10px; color: var(--text3); }
+
+/* privilege mode display */
+.mode-display {
+  text-align: center; padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin-bottom: 14px;
+  transition: all 0.3s;
+}
+.mode-display .md-big { font-size: 32px; font-weight: 900; }
+.mode-display .md-label { font-size: 13px; font-weight: 600; margin-top: 4px; }
+.mode-display .md-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TRAMPOLINE PAGE
+═══════════════════════════════════════════════════════════════ */
+.tramp-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.tramp-vis {
+  background: var(--bg1);
+  border-radius: var(--radius2);
+  border: 1px solid var(--border);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.tramp-addr-space {
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.tramp-va-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tramp-va-row:hover { background: rgba(255,255,255,0.03); }
+.tramp-va-row:last-child { border-bottom: none; }
+.tramp-va-row.highlighted { background: rgba(58,157,224,0.08); border-left: 3px solid var(--s-color); }
+.tramp-va-addr { font-family: monospace; font-size: 10px; color: var(--text3); width: 80px; }
+.tramp-va-block { flex: 1; }
+.tramp-va-name { font-weight: 600; font-size: 12px; }
+.tramp-va-desc { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.tramp-va-perm { font-family: monospace; font-size: 10px; margin-left: auto; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SOURCE EXPLORER
+═══════════════════════════════════════════════════════════════ */
+.source-layout { display: grid; grid-template-columns: 200px 1fr 300px; gap: 0; height: calc(100vh - 160px); }
+.source-files { border-right: 1px solid var(--border); padding: 16px 0; overflow-y: auto; }
+.src-file-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px; cursor: pointer;
+  font-size: 12.5px; font-family: monospace;
+  color: var(--text2);
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+}
+.src-file-btn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.src-file-btn.active { color: var(--s-color); border-left-color: var(--s-color); background: var(--s-bg); }
+.src-file-btn .sfl-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.source-code-view { overflow-y: auto; }
+.source-annotations { border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; background: var(--bg1); }
+.annotation-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  font-size: 12px; line-height: 1.6;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.annotation-card:hover { border-color: var(--s-color); }
+.annotation-card .ann-line { font-family: monospace; font-size: 10px; color: var(--s-color); margin-bottom: 6px; }
+.annotation-card .ann-title { font-weight: 600; margin-bottom: 4px; }
+.annotation-card .ann-body { color: var(--text2); }
+
+/* ═══════════════════════════════════════════════════════════════
+   QUIZ PAGE
+═══════════════════════════════════════════════════════════════ */
+.quiz-container { max-width: 720px; }
+.quiz-score-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  margin-bottom: 28px;
+}
+.qs-stat { text-align: center; flex: 1; }
+.qs-stat-val { font-size: 26px; font-weight: 800; }
+.qs-stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.qs-divider { width: 1px; height: 40px; background: var(--border); }
+
+.quiz-q {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 24px;
+  margin-bottom: 16px;
+  transition: border-color 0.3s;
+}
+.quiz-q.correct { border-color: var(--green); }
+.quiz-q.wrong { border-color: var(--red); }
+.qq-num { font-size: 10px; color: var(--text3); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+.qq-text { font-size: 14px; font-weight: 600; line-height: 1.5; margin-bottom: 16px; }
+.qq-options { display: flex; flex-direction: column; gap: 8px; }
+.qq-opt {
+  padding: 11px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 10px;
+}
+.qq-opt:hover { border-color: var(--s-color); background: var(--s-bg); }
+.qq-opt.selected { border-color: var(--s-color); background: var(--s-bg); }
+.qq-opt.correct-ans { border-color: var(--green); background: rgba(76,175,116,0.1); color: var(--green); }
+.qq-opt.wrong-ans { border-color: var(--red); background: rgba(224,80,80,0.1); color: var(--red); }
+.qq-opt-letter {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.qq-explanation {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12px; line-height: 1.6;
+  display: none;
+}
+.qq-explanation.shown { display: block; }
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOSSARY PAGE
+═══════════════════════════════════════════════════════════════ */
+.glossary-search {
+  position: relative; margin-bottom: 24px;
+}
+.glossary-search input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  padding: 12px 16px 12px 44px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.glossary-search input:focus { border-color: var(--s-color); }
+.glossary-search input::placeholder { color: var(--text4); }
+.glossary-search-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 18px; color: var(--text3); pointer-events: none;
+}
+.glossary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.glossary-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: border-color 0.15s;
+}
+.glossary-item:hover { border-color: var(--border2); }
+.glossary-item.hidden { display: none; }
+.gi-term { font-family: monospace; font-size: 14px; font-weight: 700; color: var(--s-color); margin-bottom: 8px; }
+.gi-def { font-size: 12.5px; color: var(--text2); line-height: 1.6; }
+.gi-tag {
+  display: inline-block; margin-top: 8px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; padding: 2px 8px;
+  border-radius: 99px; border: 1px solid;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STACK PAGE
+═══════════════════════════════════════════════════════════════ */
+.stack-timeline { max-width: 860px; }
+.stack-stage-row { display: grid; grid-template-columns: 160px 1fr; gap: 20px; margin-bottom: 24px; align-items: start; }
+.stack-stage-label { text-align: right; }
+.stack-stage-name { font-size: 13px; font-weight: 700; }
+.stack-stage-mode { margin-top: 4px; }
+.stack-vis-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.stack-frame {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 12px;
+  transition: background 0.2s;
+}
+.stack-frame:last-child { border-bottom: none; }
+.stack-frame.current-sp { background: rgba(58,157,224,0.08); border-left: 3px solid var(--s-color); }
+.stack-frame.guard { background: rgba(224,80,80,0.05); }
+.stack-frame-addr { font-family: monospace; font-size: 10.5px; color: var(--text3); width: 100px; }
+.stack-frame-label { font-weight: 500; }
+.stack-frame-tag { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT FLOW PAGE
+═══════════════════════════════════════════════════════════════ */
+.bf-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 8px 0 32px;
+}
+
+.bf-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 760px;
+}
+
+.bf-card {
+  width: 100%;
+  border-radius: var(--radius2);
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  overflow: hidden;
+  transition: transform .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.bf-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.bf-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.bf-card-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.bf-card-meta { flex: 1; }
+.bf-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+.bf-card-subtitle {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+.bf-card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.bf-card-body {
+  padding: 14px 20px 18px;
+}
+.bf-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bf-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.bf-step-num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+.bf-step code {
+  font-family: monospace;
+  font-size: 12px;
+  background: var(--bg4);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--asm-color);
+}
+.bf-csrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.bf-csr {
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+
+/* connector arrow between cards */
+.bf-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+  gap: 0;
+  position: relative;
+}
+.bf-conn-line {
+  width: 2px;
+  height: 28px;
+  background: var(--border2);
+}
+.bf-conn-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text2);
+  white-space: nowrap;
+  z-index: 1;
+}
+.bf-conn-line2 {
+  width: 2px;
+  height: 14px;
+  background: var(--border2);
+}
+.bf-conn-arrowhead {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid var(--border2);
+}
+
+/* Color themes per stage */
+.bf-m  { border-color: rgba(224,92,46,0.35); }
+.bf-m  .bf-card-header { background: rgba(224,92,46,0.07); }
+.bf-m  .bf-card-title  { color: #e05c2e; }
+.bf-m  .bf-card-badge  { background: rgba(224,92,46,0.15); color: #e05c2e; border: 1px solid rgba(224,92,46,0.3); }
+.bf-m  .bf-step-num    { background: rgba(224,92,46,0.15); color: #e05c2e; }
+.bf-m  .bf-conn-label  { border-color: rgba(224,92,46,0.35); color: #e05c2e; }
+
+.bf-m2 { border-color: rgba(232,160,32,0.35); }
+.bf-m2 .bf-card-header { background: rgba(232,160,32,0.07); }
+.bf-m2 .bf-card-title  { color: #e8a020; }
+.bf-m2 .bf-card-badge  { background: rgba(232,160,32,0.15); color: #e8a020; border: 1px solid rgba(232,160,32,0.3); }
+.bf-m2 .bf-step-num    { background: rgba(232,160,32,0.15); color: #e8a020; }
+.bf-m2 .bf-conn-label  { border-color: rgba(232,160,32,0.35); color: #e8a020; }
+
+.bf-s  { border-color: rgba(58,157,224,0.35); }
+.bf-s  .bf-card-header { background: rgba(58,157,224,0.07); }
+.bf-s  .bf-card-title  { color: #3a9de0; }
+.bf-s  .bf-card-badge  { background: rgba(58,157,224,0.15); color: #3a9de0; border: 1px solid rgba(58,157,224,0.3); }
+.bf-s  .bf-step-num    { background: rgba(58,157,224,0.15); color: #3a9de0; }
+.bf-s  .bf-conn-label  { border-color: rgba(58,157,224,0.35); color: #3a9de0; }
+
+.bf-s2 { border-color: rgba(46,196,154,0.35); }
+.bf-s2 .bf-card-header { background: rgba(46,196,154,0.07); }
+.bf-s2 .bf-card-title  { color: #2ec49a; }
+.bf-s2 .bf-card-badge  { background: rgba(46,196,154,0.15); color: #2ec49a; border: 1px solid rgba(46,196,154,0.3); }
+.bf-s2 .bf-step-num    { background: rgba(46,196,154,0.15); color: #2ec49a; }
+.bf-s2 .bf-conn-label  { border-color: rgba(46,196,154,0.35); color: #2ec49a; }
+
+.bf-u  { border-color: rgba(155,106,240,0.35); }
+.bf-u  .bf-card-header { background: rgba(155,106,240,0.07); }
+.bf-u  .bf-card-title  { color: #9b6af0; }
+.bf-u  .bf-card-badge  { background: rgba(155,106,240,0.15); color: #9b6af0; border: 1px solid rgba(155,106,240,0.3); }
+.bf-u  .bf-step-num    { background: rgba(155,106,240,0.15); color: #9b6af0; }
+
+/* legend row */
+.bf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+.bf-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.bf-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CSR REFERENCE PAGE
+═══════════════════════════════════════════════════════════════ */
+.csr-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.csr-filter-btn {
+  padding: 6px 14px; border-radius: 99px; cursor: pointer;
+  font-size: 11px; font-weight: 600; border: 1px solid;
+  transition: all 0.15s; user-select: none;
+  color: var(--text2); border-color: var(--border); background: transparent;
+}
+.csr-filter-btn.active { background: var(--s-bg); color: var(--s-color); border-color: var(--s-border); }
+
+.csr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.csr-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2);
+  padding: 18px; transition: border-color 0.15s;
+}
+.csr-card:hover { border-color: var(--border2); }
+.csr-card.hidden { display: none; }
+.csr-card-name { font-family: monospace; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.csr-card-full { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
+.csr-card-desc { font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+.csr-card-usage { font-size: 11.5px; line-height: 1.6; }
+.csr-card-usage .csr-usage-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 5px; }
+.csr-card-usage .csr-usage-ctx { width: 60px; flex-shrink: 0; font-size: 10px; color: var(--text3); }
+.csr-card .level-tag { margin-right: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  #hamburger { display: flex; }
+  #sidebar { transform: translateX(-100%); }
+  #sidebar.open { transform: translateX(0); }
+  #overlay.open { display: block; }
+  #main { margin-left: 0; }
+  .page-hero { padding: 56px 24px 28px; }
+  .page-content { padding: 28px 24px 60px; }
+  .stage-panel.active { grid-template-columns: 1fr; }
+  .stage-right { position: relative; height: auto; }
+  .boot-sequence-hero { padding: 56px 24px 36px; }
+  .home-flow { padding: 20px 24px; }
+  .home-cards { padding: 24px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .playground-layout { grid-template-columns: 1fr; }
+  .playground-right { height: 340px; border-top: 1px solid var(--border); }
+  .source-layout { grid-template-columns: 1fr; }
+  .source-files, .source-annotations { display: none; }
+  .priv-box-row { grid-template-columns: 1fr; }
+  .memmap-layout { grid-template-columns: 1fr; height: auto; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SYNTAX TOKENS
+═══════════════════════════════════════════════════════════════ */
+.t-kw  { color: #c080e0; }
+.t-fn  { color: #80b8f0; }
+.t-str { color: #80c060; }
+.t-num { color: #e0b060; }
+.t-cmt { color: #4a6040; }
+.t-reg { color: #e09060; }
+.t-csr { color: #60d0c0; }
+.t-lbl { color: #d0a060; }
+.t-dir { color: #8090c0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HAMBURGER + OVERLAY ═══════════════ -->
+<div id="hamburger" onclick="toggleSidebar()">
+  <span></span><span></span><span></span>
+</div>
+<div id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="chip">RISC-V · xv6</div>
+    <h2>Boot Architecture<br>Explorer</h2>
+    <p>Interactive learning guide</p>
+  </div>
+
+  <div class="nav-section-label">Start Here</div>
+  <div class="nav-item active" onclick="showPage('home')">
+    <span class="nav-icon">🏠</span> Home
+  </div>
+  <div class="nav-item" onclick="showPage('overview')">
+    <span class="nav-icon">📖</span> Overview
+  </div>
+
+  <div class="nav-section-label">Boot Sequence</div>
+  <div class="nav-item" onclick="showPage('stages')">
+    <span class="nav-icon">⚡</span> Boot Stages
+    <span class="nav-badge">6</span>
+  </div>
+  <div class="nav-item" onclick="showPage('playground')">
+    <span class="nav-icon">🎮</span> Playground
+  </div>
+  <div class="nav-item" onclick="showPage('stack')">
+    <span class="nav-icon">📚</span> Stack Journey
+  </div>
+
+  <div class="nav-section-label">Architecture</div>
+  <div class="nav-item" onclick="showPage('bootflow')">
+    <span class="nav-icon">🔁</span> Boot Flow
+  </div>
+  <div class="nav-item" onclick="showPage('memmap')">
+    <span class="nav-icon">🗺️</span> Memory Map
+  </div>
+  <div class="nav-item" onclick="showPage('privilege')">
+    <span class="nav-icon">🔐</span> Privilege Modes
+  </div>
+  <div class="nav-item" onclick="showPage('trampoline')">
+    <span class="nav-icon">🔀</span> Trampoline
+  </div>
+
+  <div class="nav-section-label">Reference</div>
+  <div class="nav-item" onclick="showPage('source')">
+    <span class="nav-icon">📄</span> Source Explorer
+  </div>
+  <div class="nav-item" onclick="showPage('csrref')">
+    <span class="nav-icon">📋</span> CSR Reference
+  </div>
+  <div class="nav-item" onclick="showPage('glossary')">
+    <span class="nav-icon">🔤</span> Glossary
+  </div>
+
+  <div class="nav-section-label">Test Yourself</div>
+  <div class="nav-item" onclick="showPage('quiz')">
+    <span class="nav-icon">🧪</span> Quiz
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════════════════ -->
+<main id="main">
+
+<!-- ─────────────────────────────── HOME ─────────────────────────────── -->
+<section class="page active" id="page-home">
+  <div class="boot-sequence-hero">
+    <div class="hero-chip badge badge-s">xv6 RISC-V Boot Architecture</div>
+    <h1 class="hero-title">How xv6 Boots on<br><span>RISC-V</span></h1>
+    <p class="hero-subtitle">An interactive deep-dive into every instruction, register change, and privilege transition from QEMU firmware to running shell — built directly from the source code.</p>
+    <div class="hero-btns">
+      <div class="btn btn-primary" onclick="showPage('playground')">🎮 Open Playground</div>
+      <div class="btn btn-outline" onclick="showPage('stages')">⚡ Explore Boot Stages</div>
+      <div class="btn btn-outline" onclick="showPage('memmap')">🗺️ Memory Map</div>
+    </div>
+  </div>
+
+  <!-- Mini flow diagram -->
+  <div class="home-flow">
+    <div class="hf-node" style="background:rgba(224,92,46,0.08);border-color:rgba(224,92,46,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">🖥️</div>
+      <div class="hf-label" style="color:#e05c2e;">QEMU</div>
+      <div class="hf-sub">Firmware</div>
+    </div>
+    <div class="hf-arrow"><div class="hf-arrow-line"></div><div class="hf-arrow-head"></div><div class="hf-arrow-label">loads ELF<br>0x80000000</div></div>
+    <div class="hf-node" style="background:rgba(232,160,32,0.08);border-color:rgba(232,160,32,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">⚙️</div>
+      <div class="hf-label" style="color:#e8a020;">_entry</div>
+      <div class="hf-sub">entry.S · M-mode</div>
+    </div>
+    <div class="hf-arrow"><div class="hf-arrow-line"></div><div class="hf-arrow-head"></div><div class="hf-arrow-label">sets up<br>stack0</div></div>
+    <div class="hf-node" style="background:rgba(200,80,60,0.08);border-color:rgba(200,80,60,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">🔧</div>
+      <div class="hf-label" style="color:#e06050;">start()</div>
+      <div class="hf-sub">start.c · M-mode</div>
+    </div>
+    <div class="hf-arrow"><div class="hf-arrow-line"></div><div class="hf-arrow-head"></div><div class="hf-arrow-label">mret → S</div></div>
+    <div class="hf-node" style="background:rgba(58,157,224,0.08);border-color:rgba(58,157,224,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">🧠</div>
+      <div class="hf-label" style="color:#3a9de0;">main()</div>
+      <div class="hf-sub">main.c · S-mode</div>
+    </div>
+    <div class="hf-arrow"><div class="hf-arrow-line"></div><div class="hf-arrow-head"></div><div class="hf-arrow-label">userinit<br>+sched</div></div>
+    <div class="hf-node" style="background:rgba(46,196,154,0.08);border-color:rgba(46,196,154,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">🌱</div>
+      <div class="hf-label" style="color:#2ec49a;">PID 1</div>
+      <div class="hf-sub">userinit()</div>
+    </div>
+    <div class="hf-arrow"><div class="hf-arrow-line"></div><div class="hf-arrow-head"></div><div class="hf-arrow-label">sret → U</div></div>
+    <div class="hf-node" style="background:rgba(155,106,240,0.08);border-color:rgba(155,106,240,0.25);" onclick="showPage('stages')">
+      <div class="hf-icon">🐚</div>
+      <div class="hf-label" style="color:#9b6af0;">/init → sh</div>
+      <div class="hf-sub">User Mode</div>
+    </div>
+  </div>
+
+  <!-- Card grid -->
+  <div class="home-cards">
+    <div class="home-card" onclick="showPage('playground')">
+      <div style="background:rgba(58,157,224,0.15);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🎮</div>
+      <div class="hc-title">Boot Playground</div>
+      <div class="hc-desc">Step through the actual xv6 boot sequence instruction by instruction. Watch CSRs change, privilege modes switch, and stacks grow.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('stages')">
+      <div style="background:rgba(232,160,32,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">⚡</div>
+      <div class="hc-title">6 Boot Stages</div>
+      <div class="hc-desc">Deep-dive into each stage: QEMU firmware, _entry assembly stub, Machine Mode setup, Supervisor initialization, and user space launch.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('memmap')">
+      <div style="background:rgba(46,196,154,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🗺️</div>
+      <div class="hc-title">Memory Map</div>
+      <div class="hc-desc">Interactive physical and virtual memory layout. Click any region to see its purpose, address range, permissions, and usage.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('privilege')">
+      <div style="background:rgba(155,106,240,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🔐</div>
+      <div class="hc-title">Privilege Modes</div>
+      <div class="hc-desc">Understand RISC-V's M/S/U privilege levels. See which CSRs belong to each level and how mret/sret/ecall switch between them.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('trampoline')">
+      <div style="background:rgba(224,92,46,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🔀</div>
+      <div class="hc-title">The Trampoline</div>
+      <div class="hc-desc">The most critical design in xv6: a page mapped at the same VA in every address space. Learn why it's essential for safe kernel/user transitions.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('source')">
+      <div style="background:rgba(232,192,64,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">📄</div>
+      <div class="hc-title">Source Explorer</div>
+      <div class="hc-desc">Read the actual kernel source files — entry.S, start.c, main.c, trampoline.S — with inline annotations explaining every important line.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('quiz')">
+      <div style="background:rgba(76,175,116,0.4);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🧪</div>
+      <div class="hc-title">Quiz</div>
+      <div class="hc-desc">Test your understanding with 15 carefully crafted questions covering all aspects of the xv6 boot process, CSRs, and RISC-V architecture.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+    <div class="home-card" onclick="showPage('glossary')">
+      <div style="background:rgba(58,157,224,0.3);border-radius:var(--radius2) var(--radius2) 0 0;position:absolute;top:0;left:0;right:0;height:3px;"></div>
+      <div class="hc-icon">🔤</div>
+      <div class="hc-title">Glossary</div>
+      <div class="hc-desc">30+ searchable definitions covering every term: CSRs, hart, privilege levels, trampoline, KSTACK, kalloc, PMP, SSTC and more.</div>
+      <div class="hc-arrow">→</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── OVERVIEW ─────────────────────────────── -->
+<section class="page" id="page-overview">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-s">Chapter 1</div>
+    <h1>Overview &amp; Background</h1>
+    <p>Before tracing the boot sequence, understand the platform: what xv6 is, how RISC-V privilege modes work, and what QEMU provides.</p>
+  </div>
+  <div class="page-content">
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:var(--s-bg);border-color:var(--s-border);">🐧</div>
+          <div><div class="card-title">What is xv6?</div></div>
+        </div>
+        <div class="card-body">
+          <p style="color:var(--text2);line-height:1.7;font-size:13px;">xv6 is a small, clean Unix-like operating system written at MIT for teaching. The RISC-V port runs on QEMU's <code>virt</code> machine and implements:</p>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>Multiple processes with virtual memory isolation</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>A simple on-disk file system (inode-based)</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>Pipes, fork, exec — full Unix process model</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>UART console, VirtIO disk driver</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>Sv39 virtual memory (3-level page tables)</span></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;"><span style="color:var(--green);">✓</span><span>Multi-hart (multi-CPU) support, up to 8 cores</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon" style="background:var(--mem-bg);border-color:var(--mem-border);">⚡</div>
+          <div><div class="card-title">RISC-V Privilege Levels</div></div>
+        </div>
+        <div class="card-body">
+          <p style="color:var(--text2);line-height:1.7;font-size:13px;margin-bottom:14px;">RISC-V defines three nested privilege levels. Each has its own CSRs and restrictions:</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="padding:12px 14px;border-radius:8px;background:var(--m-bg);border:1px solid var(--m-border);">
+              <div style="font-weight:700;color:var(--m-color);font-size:14px;">M — Machine Mode (Level 3)</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;">Full hardware access. xv6 uses it only during early boot (<code>_entry</code>, <code>start()</code>) to configure CSRs, then exits permanently via <code>mret</code>.</div>
+            </div>
+            <div style="padding:12px 14px;border-radius:8px;background:var(--s-bg);border:1px solid var(--s-border);">
+              <div style="font-weight:700;color:var(--s-color);font-size:14px;">S — Supervisor Mode (Level 1)</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;">Kernel privilege. Controls page tables (<code>satp</code>), trap handlers (<code>stvec</code>). xv6 kernel runs entirely here after <code>mret</code>.</div>
+            </div>
+            <div style="padding:12px 14px;border-radius:8px;background:var(--u-bg);border:1px solid var(--u-border);">
+              <div style="font-weight:700;color:var(--u-color);font-size:14px;">U — User Mode (Level 0)</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;">Restricted access. Cannot touch CSRs or physical memory directly. System calls go through <code>ecall</code> → trampoline → kernel.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(232,192,64,0.1);border-color:rgba(232,192,64,0.25);">🖥️</div>
+        <div><div class="card-title">What QEMU Provides</div><div class="card-subtitle">QEMU virt machine — the hardware platform xv6 runs on</div></div>
+      </div>
+      <div class="card-body">
+        <div class="grid-3">
+          <div style="padding:14px;border-radius:var(--radius);background:rgba(255,255,255,0.02);border:1px solid var(--border);">
+            <div style="font-size:20px;margin-bottom:8px;">🔄</div>
+            <div style="font-weight:700;margin-bottom:4px;">ELF Loader</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.5;">The <code>-kernel</code> flag causes QEMU to parse the kernel ELF binary and copy its PT_LOAD segments directly into simulated RAM at <code>0x80000000</code>. No separate bootloader needed.</div>
+          </div>
+          <div style="padding:14px;border-radius:var(--radius);background:rgba(255,255,255,0.02);border:1px solid var(--border);">
+            <div style="font-size:20px;margin-bottom:8px;">💻</div>
+            <div style="font-weight:700;margin-bottom:4px;">8 RISC-V Harts</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.5;">All 8 hardware threads (harts) simultaneously begin executing at <code>0x80000000</code> in Machine Mode with interrupts disabled. xv6 handles multi-hart coordination itself.</div>
+          </div>
+          <div style="padding:14px;border-radius:var(--radius);background:rgba(255,255,255,0.02);border:1px solid var(--border);">
+            <div style="font-size:20px;margin-bottom:8px;">🔌</div>
+            <div style="font-weight:700;margin-bottom:4px;">MMIO Devices</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.5;">UART at <code>0x10000000</code>, VirtIO disk at <code>0x10001000</code>, PLIC at <code>0x0C000000</code>, CLINT at <code>0x02000000</code>. All accessed via memory-mapped I/O.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(232,192,64,0.1);border-color:rgba(232,192,64,0.25);">📐</div>
+        <div><div class="card-title">Sv39 Virtual Memory</div><div class="card-subtitle">3-level page tables, 39-bit virtual address space</div></div>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">xv6 uses RISC-V's Sv39 paging scheme. A 39-bit virtual address is split into three 9-bit page table indices and a 12-bit page offset:</p>
+            <div class="code-block" style="font-size:11px;">VA[38:30]  VPN[2]  → L2 page table index
+VA[29:21]  VPN[1]  → L1 page table index
+VA[20:12]  VPN[0]  → L0 page table index
+VA[11:0]   offset  → byte within 4KB page
+
+Max virtual address: 2^39 = 512 GB
+Page size: 4096 bytes (4 KB)
+PTE size: 8 bytes
+PTEs per page: 512</div>
+          </div>
+          <div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">Key PTE permission bits used in xv6:</p>
+            <table class="ref-table">
+              <thead><tr><th>Bit</th><th>Name</th><th>Meaning</th></tr></thead>
+              <tbody>
+                <tr><td><code>PTE_V</code></td><td>Valid</td><td>PTE is valid</td></tr>
+                <tr><td><code>PTE_R</code></td><td>Read</td><td>Page is readable</td></tr>
+                <tr><td><code>PTE_W</code></td><td>Write</td><td>Page is writable</td></tr>
+                <tr><td><code>PTE_X</code></td><td>Execute</td><td>Page is executable</td></tr>
+                <tr><td><code>PTE_U</code></td><td>User</td><td>Accessible in U-mode</td></tr>
+              </tbody>
+            </table>
+            <div class="info-box tip" style="margin-top:12px;">
+              <div class="info-box-icon">💡</div>
+              <div>TRAMPOLINE and TRAPFRAME are mapped <strong>without</strong> <code>PTE_U</code>, making them invisible to user code but accessible in S-mode during trap handling.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────── STAGES ─────────────────────────────── -->
+<section class="page" id="page-stages">
+  <div class="page-hero" style="padding-bottom:0;">
+    <div class="hero-chip badge badge-s">Boot Stages</div>
+    <h1>6-Stage Boot Sequence</h1>
+    <p>Select a stage to explore its code, CSR state, and design rationale.</p>
+  </div>
+  <div class="stepper-nav">
+    <div class="stepper-tab active" onclick="showStage(0)"><span class="st-num">0</span> QEMU</div>
+    <div class="stepper-tab" onclick="showStage(1)"><span class="st-num">1</span> _entry</div>
+    <div class="stepper-tab" onclick="showStage(2)"><span class="st-num">2</span> start()</div>
+    <div class="stepper-tab" onclick="showStage(3)"><span class="st-num">3</span> main()</div>
+    <div class="stepper-tab" onclick="showStage(4)"><span class="st-num">4</span> userinit()</div>
+    <div class="stepper-tab" onclick="showStage(5)"><span class="st-num">5</span> User Space</div>
+  </div>
+  <div id="stages-container"></div>
+</section>
+
+<!-- ─────────────────────────────── MEMORY MAP ─────────────────────────────── -->
+<section class="page" id="page-memmap">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-g">Memory Layout</div>
+    <h1>Physical Memory Map</h1>
+    <p>Click any memory region to see its address, purpose, and usage during the boot process.</p>
+  </div>
+  <div class="memmap-layout">
+    <div class="memmap-visual">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:12px;">Physical Address Space</div>
+      <div class="mem-bar-wrap" id="membar-container"></div>
+    </div>
+    <div class="memmap-detail" id="memmap-detail">
+      <div style="text-align:center;padding:60px 20px;color:var(--text4);">
+        <div style="font-size:48px;margin-bottom:12px;">👈</div>
+        <div style="font-size:14px;">Select a memory region</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── PRIVILEGE ─────────────────────────────── -->
+<section class="page" id="page-privilege">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-m">Privilege Modes</div>
+    <h1>M / S / U Privilege Modes</h1>
+    <p>RISC-V's three hardware privilege levels — how they differ, what transitions between them, and which CSRs belong to each.</p>
+  </div>
+  <div class="page-content">
+    <div class="priv-sim">
+      <div class="priv-box-row">
+        <div class="priv-box-card" id="priv-m" style="background:var(--m-bg);border-color:var(--m-border);">
+          <div class="pbc-level" style="color:var(--m-color);">M</div>
+          <div class="pbc-name" style="color:#f0c8b0;">Machine Mode</div>
+          <div class="pbc-detail">Full hardware access.<br>All CSRs visible.<br>Only mode that can write <code>mstatus</code>, <code>medeleg</code>, PMP registers.</div>
+          <div class="pbc-fn" style="background:rgba(224,92,46,0.15);color:var(--m-color);">_entry · start()</div>
+        </div>
+        <div class="priv-trans-arrow" id="priv-trans-ms">
+          <div class="priv-trans-line"></div><div class="priv-trans-arrowhead"></div>
+          <div class="priv-trans-inst" style="color:var(--m-color);">mret</div>
+          <div class="priv-trans-desc">mepc → PC<br>MPP=S → S-mode</div>
+        </div>
+        <div class="priv-box-card" id="priv-s" style="background:var(--s-bg);border-color:var(--s-border);">
+          <div class="pbc-level" style="color:var(--s-color);">S</div>
+          <div class="pbc-name" style="color:#c8e0f0;">Supervisor Mode</div>
+          <div class="pbc-detail">Kernel privilege.<br>Controls paging (<code>satp</code>),<br>trap vectors (<code>stvec</code>), and memory protection.</div>
+          <div class="pbc-fn" style="background:rgba(58,157,224,0.15);color:var(--s-color);">main() · scheduler()</div>
+        </div>
+        <div class="priv-trans-arrow" id="priv-trans-su">
+          <div class="priv-trans-line"></div><div class="priv-trans-arrowhead"></div>
+          <div class="priv-trans-inst" style="color:var(--s-color);">sret</div>
+          <div class="priv-trans-desc">sepc → PC<br>SPP=0 → U-mode</div>
+        </div>
+        <div class="priv-box-card" id="priv-u" style="background:var(--u-bg);border-color:var(--u-border);">
+          <div class="pbc-level" style="color:var(--u-color);">U</div>
+          <div class="pbc-name" style="color:#dcc8f8;">User Mode</div>
+          <div class="pbc-detail">Most restricted.<br>Cannot access CSRs.<br>System calls via <code>ecall</code> trap to S-mode through trampoline.</div>
+          <div class="pbc-fn" style="background:rgba(155,106,240,0.15);color:var(--u-color);">initcode · /init · /sh</div>
+        </div>
+      </div>
+
+      <div class="info-box info">
+        <div class="info-box-icon">ℹ️</div>
+        <div>The return path from U→S goes through <code>ecall</code> → TRAMPOLINE (<code>uservec</code>) → <code>usertrap()</code>. The trampoline saves all user registers into TRAPFRAME before switching to the kernel page table and stack.</div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">Key CSRs Per Privilege Level</div>
+      <div class="priv-csr-grid">
+        <div class="priv-csr-card" style="border-color:var(--m-border);">
+          <div class="pcsr-name" style="color:var(--m-color);">mstatus</div>
+          <div class="pcsr-full">Machine Status Register</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">MPP[12:11]</span><span class="pcsr-field-val">Return privilege</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">MPIE[7]</span><span class="pcsr-field-val">Previous M interrupt</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">MIE[3]</span><span class="pcsr-field-val">M interrupt enable</span></div>
+        </div>
+        <div class="priv-csr-card" style="border-color:var(--m-border);">
+          <div class="pcsr-name" style="color:var(--m-color);">mepc</div>
+          <div class="pcsr-full">Machine Exception PC</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">xv6 use</span><span class="pcsr-field-val">Set to &amp;main</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">mret reads</span><span class="pcsr-field-val">PC ← mepc</span></div>
+        </div>
+        <div class="priv-csr-card" style="border-color:var(--m-border);">
+          <div class="pcsr-name" style="color:var(--m-color);">medeleg / mideleg</div>
+          <div class="pcsr-full">Delegation Registers</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">medeleg</span><span class="pcsr-field-val">0xFFFF (all exceptions→S)</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">mideleg</span><span class="pcsr-field-val">0xFFFF (all irqs→S)</span></div>
+        </div>
+        <div class="priv-csr-card" style="border-color:var(--s-border);">
+          <div class="pcsr-name" style="color:var(--s-color);">satp</div>
+          <div class="pcsr-full">Supervisor Address Translation</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">MODE[63:60]</span><span class="pcsr-field-val">8=Sv39, 0=bare</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">PPN[43:0]</span><span class="pcsr-field-val">Root page table</span></div>
+        </div>
+        <div class="priv-csr-card" style="border-color:var(--s-border);">
+          <div class="pcsr-name" style="color:var(--s-color);">stvec</div>
+          <div class="pcsr-full">Supervisor Trap Vector</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">kernelvec</span><span class="pcsr-field-val">While in kernel</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">uservec</span><span class="pcsr-field-val">Before return to user</span></div>
+        </div>
+        <div class="priv-csr-card" style="border-color:var(--s-border);">
+          <div class="pcsr-name" style="color:var(--s-color);">sepc / sstatus</div>
+          <div class="pcsr-full">Supervisor Exception PC / Status</div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">SPP[8]</span><span class="pcsr-field-val">0=U, 1=S (return mode)</span></div>
+          <div class="priv-csr-field"><span class="pcsr-field-name">SPIE[5]</span><span class="pcsr-field-val">Prev interrupt enable</span></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">PMP — Physical Memory Protection</div>
+      <div class="section-desc">Without PMP, Supervisor mode cannot access any physical memory — M-mode must explicitly grant access.</div>
+      <div class="code-block"><span class="t-cmt">// kernel/start.c — grants S-mode access to ALL physical memory</span>
+<span class="t-fn">w_pmpaddr0</span>(0x3fffffffffffffull);  <span class="t-cmt">// covers 0x0 to max physical address</span>
+<span class="t-fn">w_pmpcfg0</span>(0xf);                   <span class="t-cmt">// R/W/X permissions, TOR (Top Of Range) mode</span>
+
+<span class="t-cmt">// pmpcfg0 = 0xf = 0b00001111</span>
+<span class="t-cmt">// bit[0]=R, bit[1]=W, bit[2]=X, bit[4:3]=10 (TOR mode)</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── PLAYGROUND ─────────────────────────────── -->
+<section class="page" id="page-playground">
+  <div class="pg-progress"><div class="pg-progress-fill" id="pg-progress-fill" style="width:0%"></div></div>
+  <div class="playground-layout">
+    <div class="playground-left">
+      <div id="pg-file-header" class="pg-file-header">
+        <div class="pg-file-dot" style="background:var(--m-color);"></div>
+        <span id="pg-filename">QEMU firmware</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text4);">BOOT PLAYGROUND</span>
+      </div>
+      <div class="playground-code" id="pg-code-view"></div>
+      <div class="playground-controls">
+        <button class="pg-ctrl-btn pg-btn-reset" onclick="pgReset()">↺ Reset</button>
+        <button class="pg-ctrl-btn pg-btn-back" id="pg-btn-back" onclick="pgBack()" disabled>← Back</button>
+        <button class="pg-ctrl-btn pg-btn-next" id="pg-btn-next" onclick="pgNext()">Next Step →</button>
+        <button class="pg-ctrl-btn pg-btn-run" id="pg-btn-run" onclick="pgRun()">▶ Run All</button>
+        <span class="pg-step-info" id="pg-step-info">Step 0 / 0</span>
+      </div>
+    </div>
+    <div class="playground-right">
+      <div class="pg-panel-tabs">
+        <div class="pg-panel-tab active" onclick="pgTab('explain')">Explanation</div>
+        <div class="pg-panel-tab" onclick="pgTab('state')">CPU State</div>
+        <div class="pg-panel-tab" onclick="pgTab('stack')">Stack</div>
+      </div>
+      <div class="pg-panel-content">
+        <div class="pg-panel-pane active" id="pgpane-explain">
+          <div class="pg-desc-box" id="pg-desc">Press <strong>Next Step →</strong> to begin the boot sequence.</div>
+          <div id="pg-extra"></div>
+        </div>
+        <div class="pg-panel-pane" id="pgpane-state">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:10px;">Privilege Mode</div>
+          <div class="mode-display badge-m" id="pg-mode-display" style="border-color:var(--m-border);background:var(--m-bg);">
+            <div class="md-big" style="color:var(--m-color);">M</div>
+            <div class="md-label">Machine Mode</div>
+            <div class="md-sub">Full hardware access</div>
+          </div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:10px;">CSR State</div>
+          <div class="csr-display" id="pg-csr-display"></div>
+        </div>
+        <div class="pg-panel-pane" id="pgpane-stack">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:10px;">Stack Pointer</div>
+          <div id="pg-stack-display"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── BOOT FLOW ─────────────────────────────── -->
+<section class="page" id="page-bootflow">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-m">Architecture</div>
+    <h2>Boot Flow</h2>
+    <p>Every stage the system passes through from QEMU power-on to a running shell — with the key registers set, privilege transitions made, and source functions called at each step.</p>
+  </div>
+
+  <!-- Legend -->
+  <div class="bf-legend">
+    <div class="bf-legend-item"><div class="bf-legend-dot" style="background:#e05c2e;"></div> M-mode (Machine)</div>
+    <div class="bf-legend-item"><div class="bf-legend-dot" style="background:#e8a020;"></div> M-mode setup</div>
+    <div class="bf-legend-item"><div class="bf-legend-dot" style="background:#3a9de0;"></div> S-mode (Supervisor)</div>
+    <div class="bf-legend-item"><div class="bf-legend-dot" style="background:#2ec49a;"></div> S-mode init</div>
+    <div class="bf-legend-item"><div class="bf-legend-dot" style="background:#9b6af0;"></div> U-mode (User)</div>
+  </div>
+
+  <div class="bf-wrapper">
+
+    <!-- Stage 0 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-m" onclick="showPage('stages')">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">🖥️</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 0 — QEMU Firmware</div>
+            <div class="bf-card-subtitle">Physical address <code style="color:#e05c2e;background:rgba(224,92,46,0.1);font-size:11px;padding:1px 5px;border-radius:3px;">0x1000</code> → jumps to <code style="color:#e05c2e;background:rgba(224,92,46,0.1);font-size:11px;padding:1px 5px;border-radius:3px;">0x80000000</code></div>
+          </div>
+          <div class="bf-card-badge">M-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div>QEMU emulates RISC-V <em>virt</em> machine — no separate BIOS chip, firmware is built into QEMU itself.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div>Firmware resets all harts to <strong>Machine mode</strong> at PC = <code>0x1000</code> — a small ROM stub.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div>The ROM stub loads the kernel ELF (via <code>-kernel</code> flag) into physical RAM at <code>0x80000000</code>, then jumps there.</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div>All CPUs (harts) start simultaneously; <code>mhartid</code> distinguishes them. Every hart enters <code>_entry</code>.</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">pc = 0x80000000</div>
+            <div class="bf-csr">mhartid = hart ID</div>
+            <div class="bf-csr">privilege = M</div>
+          </div>
+        </div>
+      </div>
+      <div class="bf-connector">
+        <div class="bf-conn-line"></div>
+        <div class="bf-conn-label">jumps to 0x80000000</div>
+        <div class="bf-conn-line2"></div>
+        <div class="bf-conn-arrowhead"></div>
+      </div>
+    </div>
+
+    <!-- Stage 1 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-m" onclick="showPage('stages')">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">⚙️</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 1 — _entry (entry.S)</div>
+            <div class="bf-card-subtitle">Kernel entry point · sets up per-hart stacks</div>
+          </div>
+          <div class="bf-card-badge">M-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div><code>stack0</code> is a 4096 × NCPU byte array in BSS. Each hart gets its own 4 KiB slice: <code>sp = stack0 + (hartid+1)*4096</code>.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div>The stack pointer is set by reading <code>mhartid</code>, multiplying by 4096, adding the base address of <code>stack0</code>, then adding 4096 to point to the top.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div>Jumps (via <code>tail start</code>) to the C function <code>start()</code> — still in M-mode, no stack frame yet.</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div>Harts not yet ready spin on a lock in <code>main()</code> — only hart 0 proceeds first.</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">sp = stack0[(hartid+1)*4096]</div>
+            <div class="bf-csr">privilege = M</div>
+          </div>
+        </div>
+      </div>
+      <div class="bf-connector">
+        <div class="bf-conn-line"></div>
+        <div class="bf-conn-label">tail start → start()</div>
+        <div class="bf-conn-line2"></div>
+        <div class="bf-conn-arrowhead"></div>
+      </div>
+    </div>
+
+    <!-- Stage 2 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-m2" onclick="showPage('stages')">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">🔧</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 2 — start() (start.c)</div>
+            <div class="bf-card-subtitle">Machine-mode CSR configuration · prepares mret to S-mode</div>
+          </div>
+          <div class="bf-card-badge">M-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div><strong>mstatus.MPP ← S</strong> — sets the "previous privilege" field so <code>mret</code> drops to Supervisor mode.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div><strong>mepc ← main</strong> — tells <code>mret</code> to jump to <code>main()</code>.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div><strong>satp ← 0</strong> — disables paging; physical addressing until <code>kvminit()</code> sets up page tables.</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div><strong>medeleg / mideleg ← 0xffff</strong> — delegates all exceptions and interrupts to S-mode handlers.</div></div>
+            <div class="bf-step"><div class="bf-step-num">5</div><div><strong>PMP</strong> — <code>pmpaddr0</code> and <code>pmpcfg0</code> grant S-mode read/write/execute to all physical memory.</div></div>
+            <div class="bf-step"><div class="bf-step-num">6</div><div><strong>timerinit()</strong> — enables SSTC extension, configures <code>stimecmp</code> for the first timer interrupt.</div></div>
+            <div class="bf-step"><div class="bf-step-num">7</div><div><strong>tp ← hartid</strong> — stores hart ID in the thread pointer register so <code>cpuid()</code> works in S-mode without a CSR read.</div></div>
+            <div class="bf-step"><div class="bf-step-num">8</div><div><strong>mret</strong> — atomically: restores MPP → S-mode, jumps to <code>mepc</code> (= <code>main</code>).</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">mstatus.MPP=S</div>
+            <div class="bf-csr">mepc=main</div>
+            <div class="bf-csr">satp=0</div>
+            <div class="bf-csr">medeleg=0xffff</div>
+            <div class="bf-csr">mideleg=0xffff</div>
+            <div class="bf-csr">pmpaddr0</div>
+            <div class="bf-csr">pmpcfg0=0xf</div>
+            <div class="bf-csr">tp=hartid</div>
+          </div>
+        </div>
+      </div>
+      <div class="bf-connector">
+        <div class="bf-conn-line"></div>
+        <div class="bf-conn-label">mret → Supervisor mode</div>
+        <div class="bf-conn-line2"></div>
+        <div class="bf-conn-arrowhead"></div>
+      </div>
+    </div>
+
+    <!-- Stage 3 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-s" onclick="showPage('stages')">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">🧠</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 3 — main() (main.c)</div>
+            <div class="bf-card-subtitle">Supervisor-mode kernel initialization · hart 0 bootstraps, others wait</div>
+          </div>
+          <div class="bf-card-badge">S-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div><strong>Hart 0 only</strong>: <code>consoleinit()</code> — UART device, enables console I/O.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div><code>kinit()</code> — physical memory allocator: adds all free pages from <code>end</code> to <code>PHYSTOP</code> into the free list.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div><code>kvminit()</code> — builds the kernel page table (device MMIO, kernel text, kernel data, per-process KSTACK regions).</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div><code>kvminithart()</code> — writes <code>satp</code> with the kernel page table PPN and flushes TLB with <code>sfence.vma</code>. Paging is now ON.</div></div>
+            <div class="bf-step"><div class="bf-step-num">5</div><div><code>procinit()</code>, <code>trapinit()</code>, <code>trapinithart()</code> — sets <code>stvec</code> to the trampoline's kernel trap vector.</div></div>
+            <div class="bf-step"><div class="bf-step-num">6</div><div><code>plicinit()</code> / <code>plicinithart()</code> — PLIC interrupt controller: enables UART and virtio device interrupts.</div></div>
+            <div class="bf-step"><div class="bf-step-num">7</div><div><code>binit()</code>, <code>iinit()</code>, <code>fileinit()</code> — block cache, inode cache, file table.</div></div>
+            <div class="bf-step"><div class="bf-step-num">8</div><div><code>virtio_disk_init()</code> — initializes the virtio block device (the disk).</div></div>
+            <div class="bf-step"><div class="bf-step-num">9</div><div><code>userinit()</code> — allocates PID 1, maps <code>initcode</code> binary at VA <code>0x0</code>, sets up trapframe for first sret.</div></div>
+            <div class="bf-step"><div class="bf-step-num">10</div><div>Other harts: spin until <code>started==1</code>, then run their own <code>kvminithart()</code>/<code>trapinithart()</code>, call <code>scheduler()</code>.</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">satp = kernel pagetable</div>
+            <div class="bf-csr">stvec = kernelvec</div>
+            <div class="bf-csr">sie |= SEIE|STIE</div>
+          </div>
+        </div>
+      </div>
+      <div class="bf-connector">
+        <div class="bf-conn-line"></div>
+        <div class="bf-conn-label">scheduler() → first runnable proc</div>
+        <div class="bf-conn-line2"></div>
+        <div class="bf-conn-arrowhead"></div>
+      </div>
+    </div>
+
+    <!-- Stage 4 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-s2" onclick="showPage('stages')">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">🌱</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 4 — userinit() / scheduler()</div>
+            <div class="bf-card-subtitle">PID 1 created · first context switch · sret to user space</div>
+          </div>
+          <div class="bf-card-badge">S-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div><code>userinit()</code> allocates a <code>struct proc</code>, calls <code>allocproc()</code> which sets up the kernel stack and trapframe.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div><code>uvminit()</code> allocates one page, copies the <code>initcode</code> binary (tiny exec syscall) into it at VA <code>0x0</code>.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div>Trapframe is initialized: <code>epc=0</code> (start of initcode), <code>sp=PGSIZE</code> (top of user page).</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div><code>scheduler()</code> finds PID 1 in RUNNABLE state, calls <code>swtch()</code> to swap to its kernel context.</div></div>
+            <div class="bf-step"><div class="bf-step-num">5</div><div><code>usertrapret()</code> prepares the return: sets <code>stvec</code> to trampoline uservec, loads trapframe into CSRs.</div></div>
+            <div class="bf-step"><div class="bf-step-num">6</div><div>Trampoline's <code>userret</code> restores all user registers from trapframe, switches <code>satp</code> to the user page table, <code>sret</code> fires.</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">sepc = 0x0 (initcode)</div>
+            <div class="bf-csr">satp = user pagetable</div>
+            <div class="bf-csr">sstatus.SPP=0</div>
+          </div>
+        </div>
+      </div>
+      <div class="bf-connector">
+        <div class="bf-conn-line"></div>
+        <div class="bf-conn-label">sret → User mode</div>
+        <div class="bf-conn-line2"></div>
+        <div class="bf-conn-arrowhead"></div>
+      </div>
+    </div>
+
+    <!-- Stage 5 -->
+    <div class="bf-stage">
+      <div class="bf-card bf-u">
+        <div class="bf-card-header">
+          <div class="bf-card-icon">🐚</div>
+          <div class="bf-card-meta">
+            <div class="bf-card-title">Stage 5 — initcode → /init → sh</div>
+            <div class="bf-card-subtitle">User space · exec syscalls chain to the shell</div>
+          </div>
+          <div class="bf-card-badge">U-mode</div>
+        </div>
+        <div class="bf-card-body">
+          <div class="bf-steps">
+            <div class="bf-step"><div class="bf-step-num">1</div><div><code>initcode</code> runs at VA <code>0x0</code>. It puts <code>SYS_exec</code> in <code>a7</code>, the string <code>"/init"</code> in <code>a0</code>, then <code>ecall</code>.</div></div>
+            <div class="bf-step"><div class="bf-step-num">2</div><div>The <code>ecall</code> traps to S-mode via <code>uservec</code> (trampoline). The kernel handles it as a <code>sys_exec</code> call, loading <code>/init</code> from disk.</div></div>
+            <div class="bf-step"><div class="bf-step-num">3</div><div><code>/init</code> opens <code>/dev/console</code> as fd 0,1,2 then <code>fork()+exec("/sh")</code>.</div></div>
+            <div class="bf-step"><div class="bf-step-num">4</div><div><code>sh</code> (the shell) starts, prints a prompt, and the system is now fully operational.</div></div>
+          </div>
+          <div class="bf-csrs">
+            <div class="bf-csr">privilege = U</div>
+            <div class="bf-csr">ecall → sys_exec</div>
+            <div class="bf-csr">exec("/init") → exec("/sh")</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.bf-wrapper -->
+</section>
+
+<!-- ─────────────────────────────── TRAMPOLINE ─────────────────────────────── -->
+<section class="page" id="page-trampoline">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-y">Deep Dive</div>
+    <h1>The Trampoline</h1>
+    <p>The most critical design element in xv6. A single 4 KB page mapped at the same virtual address in <em>every</em> address space — essential for safe kernel/user transitions.</p>
+  </div>
+  <div class="page-content">
+
+    <div class="info-box warn">
+      <div class="info-box-icon">⚠️</div>
+      <div><strong>The Core Problem:</strong> When a user-space trap fires, the CPU switches to S-mode but the <em>user</em> page table is still loaded in <code>satp</code>. The kernel's code is not mapped in user page tables — except for the trampoline page, which is mapped at <code>TRAMPOLINE = MAXVA - PGSIZE</code> in every page table.</div>
+    </div>
+
+    <div class="tramp-layout">
+      <div>
+        <div class="section-title" style="margin-top:24px;">User VA Space (any process)</div>
+        <div class="tramp-addr-space" id="tramp-user-space"></div>
+        <div class="section-title" style="margin-top:20px;">Kernel VA Space</div>
+        <div class="tramp-addr-space" id="tramp-kernel-space"></div>
+      </div>
+      <div>
+        <div class="tramp-vis" style="margin-top:24px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--yellow);">Why the Same Address in Both?</div>
+          <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:14px;">When a trap fires from user space:</p>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;"><div style="color:var(--s-color);font-weight:700;width:20px;flex-shrink:0;">1.</div><div>CPU sets PC = <code>stvec</code> = <code>TRAMPOLINE + offset</code> (uservec)</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;"><div style="color:var(--s-color);font-weight:700;width:20px;flex-shrink:0;">2.</div><div>CPU is now in S-mode, but <code>satp</code> still holds the <strong>user</strong> page table</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;"><div style="color:var(--s-color);font-weight:700;width:20px;flex-shrink:0;">3.</div><div>Code at <code>TRAMPOLINE</code> must be executable under the <em>user</em> page table (it is — mapped there without PTE_U)</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;"><div style="color:var(--s-color);font-weight:700;width:20px;flex-shrink:0;">4.</div><div><code>uservec</code> switches <code>satp</code> to kernel page table</div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;"><div style="color:var(--s-color);font-weight:700;width:20px;flex-shrink:0;">5.</div><div>After switch, PC still points into <code>TRAMPOLINE</code> — valid because it's mapped at the <strong>same VA in kernel space too</strong></div></div>
+          </div>
+          <div class="info-box tip" style="margin-top:16px;">
+            <div class="info-box-icon">💡</div>
+            <div>Without this identity of VA, the <code>csrw satp, t1</code> instruction would immediately invalidate the current PC, causing a fault.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">uservec — Trap Entry (trampoline.S)</div>
+    <div class="section-desc">Annotated assembly for the full trap entry path from user space into the kernel.</div>
+    <div class="code-block" id="uservec-code"></div>
+
+    <div class="divider"></div>
+    <div class="section-title">userret — Trap Return (trampoline.S)</div>
+    <div class="code-block" id="userret-code"></div>
+
+  </div>
+</section>
+
+<!-- ─────────────────────────────── STACK JOURNEY ─────────────────────────────── -->
+<section class="page" id="page-stack">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-s">Stack Lifecycle</div>
+    <h1>Stack Journey Through Boot</h1>
+    <p>Four distinct stacks are used from the first instruction to running user code. Here's exactly when each one takes over.</p>
+  </div>
+  <div class="page-content">
+    <div class="stack-timeline" id="stack-timeline"></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── SOURCE EXPLORER ─────────────────────────────── -->
+<section class="page" id="page-source">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-y">Source Code</div>
+    <h1>Source File Explorer</h1>
+    <p>Read the actual kernel source with inline annotations explaining every important decision.</p>
+  </div>
+  <div class="source-layout">
+    <div class="source-files">
+      <div style="padding:12px 16px 8px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);">Kernel Files</div>
+      <div class="src-file-btn active" onclick="showSource('entry')" id="srcbtn-entry"><div class="sfl-dot" style="background:var(--asm-color);"></div>entry.S</div>
+      <div class="src-file-btn" onclick="showSource('start')" id="srcbtn-start"><div class="sfl-dot" style="background:var(--m-color);"></div>start.c</div>
+      <div class="src-file-btn" onclick="showSource('main')" id="srcbtn-main"><div class="sfl-dot" style="background:var(--s-color);"></div>main.c</div>
+      <div class="src-file-btn" onclick="showSource('tramp')" id="srcbtn-tramp"><div class="sfl-dot" style="background:var(--mem-color);"></div>trampoline.S</div>
+      <div class="src-file-btn" onclick="showSource('swtch')" id="srcbtn-swtch"><div class="sfl-dot" style="background:var(--u-color);"></div>swtch.S</div>
+    </div>
+    <div class="source-code-view" id="source-code-view"></div>
+    <div class="source-annotations" id="source-annotations"></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── CSR REFERENCE ─────────────────────────────── -->
+<section class="page" id="page-csrref">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-m">Reference</div>
+    <h1>CSR Reference</h1>
+    <p>All Control and Status Registers used during the xv6 boot sequence — their fields, values, and significance.</p>
+  </div>
+  <div class="page-content">
+    <div class="csr-filter-bar">
+      <div class="csr-filter-btn active" onclick="csrFilter('all', this)">All</div>
+      <div class="csr-filter-btn" onclick="csrFilter('m', this)" style="color:var(--m-color);border-color:var(--m-border);">M-mode</div>
+      <div class="csr-filter-btn" onclick="csrFilter('s', this)" style="color:var(--s-color);border-color:var(--s-border);">S-mode</div>
+      <div class="csr-filter-btn" onclick="csrFilter('timer', this)">Timer</div>
+    </div>
+    <div class="csr-cards" id="csr-cards"></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── GLOSSARY ─────────────────────────────── -->
+<section class="page" id="page-glossary">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-g">Reference</div>
+    <h1>Glossary</h1>
+    <p>Definitions for every term used in the xv6 RISC-V boot process.</p>
+  </div>
+  <div class="page-content">
+    <div class="glossary-search">
+      <div class="glossary-search-icon">🔍</div>
+      <input type="text" placeholder="Search terms..." oninput="filterGlossary(this.value)" id="glossary-input">
+    </div>
+    <div class="glossary-grid" id="glossary-grid"></div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────── QUIZ ─────────────────────────────── -->
+<section class="page" id="page-quiz">
+  <div class="page-hero">
+    <div class="hero-chip badge badge-g">Test Yourself</div>
+    <h1>Boot Architecture Quiz</h1>
+    <p>15 questions covering the full xv6 RISC-V boot process. Click an answer to check it immediately.</p>
+  </div>
+  <div class="page-content">
+    <div class="quiz-container">
+      <div class="quiz-score-bar">
+        <div class="qs-stat"><div class="qs-stat-val" id="qs-correct" style="color:var(--green);">0</div><div class="qs-stat-label">Correct</div></div>
+        <div class="qs-divider"></div>
+        <div class="qs-stat"><div class="qs-stat-val" id="qs-wrong" style="color:var(--red);">0</div><div class="qs-stat-label">Wrong</div></div>
+        <div class="qs-divider"></div>
+        <div class="qs-stat"><div class="qs-stat-val" id="qs-total" style="color:var(--text2);">0</div><div class="qs-stat-label">Answered</div></div>
+        <div class="qs-divider"></div>
+        <div class="qs-stat"><div class="qs-stat-val" id="qs-pct" style="color:var(--s-color);">—</div><div class="qs-stat-label">Score</div></div>
+        <button class="btn btn-outline btn-sm" onclick="resetQuiz()" style="margin-left:auto;">Reset</button>
+      </div>
+      <div id="quiz-container"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════
+   JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ── Navigation ──────────────────────────────────────────────── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(it => { if (it.getAttribute('onclick') && it.getAttribute('onclick').includes("'" + id + "'")) it.classList.add('active'); });
+  document.getElementById('main').scrollTop = 0;
+  if (window.innerWidth <= 900) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+
+/* ── Stage Data ──────────────────────────────────────────────── */
+const stageData = [
+  {
+    num:'0', title:'QEMU Firmware', file:'QEMU internal boot ROM · 0x00001000',
+    color:'#e05c2e', bg:'rgba(224,92,46,0.1)', border:'rgba(224,92,46,0.2)',
+    mode:'M', modeLabel:'Machine Mode', modeDesc:'No stack · Hardware reset state',
+    desc:'Before any kernel code runs, QEMU acts as firmware. The <code>-kernel</code> flag causes QEMU\'s internal boot ROM to parse the kernel ELF binary, copy all PT_LOAD segments into simulated RAM, and then reset every hart\'s program counter to <code>0x80000000</code>.',
+    steps:[
+      {n:1, t:'QEMU -kernel flag', d:'QEMU receives the kernel ELF via the <code>-kernel kernel</code> command-line argument. No separate bootloader binary is used — QEMU\'s firmware handles loading.'},
+      {n:2, t:'ELF parsing', d:'QEMU\'s boot ROM reads ELF program headers, finds all PT_LOAD segments, and copies each one into simulated RAM. The linker script ensures the first segment starts at <code>0x80000000</code> (KERNBASE).'},
+      {n:3, t:'All harts jump to 0x80000000', d:'Every hardware thread (hart 0 through hart 7) has its program counter reset to <code>0x80000000</code> simultaneously. All start in Machine Mode with interrupts disabled and no valid stack.'},
+    ],
+    csr:{satp:'0x0 (off)',mepc:'—',sepc:'—',stvec:'—',mstatus:'—',medeleg:'—',tp:'—'},
+    sp:'none — no stack yet'
+  },
+  {
+    num:'1', title:'_entry — entry.S', file:'kernel/entry.S · Line 7',
+    color:'#e8a020', bg:'rgba(232,160,32,0.1)', border:'rgba(232,160,32,0.2)',
+    mode:'M', modeLabel:'Machine Mode', modeDesc:'Paging OFF · VA = PA',
+    desc:'The very first instruction at <code>0x80000000</code>. <code>_entry</code> has one job: calculate a unique 4 KB stack slice for each hart from the <code>stack0</code> array in <code>.bss</code>, then call <code>start()</code>.',
+    steps:[
+      {n:1, t:'la sp, stack0', d:'Load the base address of <code>stack0</code> into <code>sp</code>. This is a 32 KB array (<code>char stack0[4096 × 8]</code>) aligned to 16 bytes, zeroed at load time, located in <code>.bss</code>.'},
+      {n:2, t:'csrr a1, mhartid', d:'Read this hart\'s ID (0–7) from the <code>mhartid</code> CSR. Each hart gets a unique ID, enabling distinct stack slices.'},
+      {n:3, t:'Compute sp = stack0 + (hartid+1) × 4096', d:'Add 1 to hartid to make the formula 1-based, multiply by 4096, add to base. <strong>Hart 0:</strong> sp = stack0 + 4096. Stacks grow downward, so this points to the top of each 4 KB slice.'},
+      {n:4, t:'call start', d:'With <code>sp</code> set, the hart can execute C code. Jumps to <code>start()</code> in <code>start.c</code>. The fallthrough <code>spin: j spin</code> loop is a safety net — never reached since <code>start()</code> ends with <code>mret</code>.'},
+    ],
+    code:`<span class="t-dir">.section</span> .text
+<span class="t-dir">.global</span> <span class="t-lbl">_entry</span>
+<span class="t-lbl">_entry:</span>
+    <span class="t-cmt"># sp = stack0 + (hartid + 1) * 4096</span>
+    la  <span class="t-reg">sp</span>, stack0           <span class="t-cmt"># base of boot stacks</span>
+    li  <span class="t-reg">a0</span>, 1024*4          <span class="t-cmt"># 4 KB per hart</span>
+    csrr <span class="t-reg">a1</span>, <span class="t-csr">mhartid</span>        <span class="t-cmt"># this hart's ID (0–7)</span>
+    addi <span class="t-reg">a1</span>, <span class="t-reg">a1</span>, 1         <span class="t-cmt"># offset = hartid + 1</span>
+    mul  <span class="t-reg">a0</span>, <span class="t-reg">a0</span>, <span class="t-reg">a1</span>         <span class="t-cmt"># bytes = (hartid+1)*4096</span>
+    add  <span class="t-reg">sp</span>, <span class="t-reg">sp</span>, <span class="t-reg">a0</span>         <span class="t-cmt"># sp = top of this hart's slice</span>
+    call start               <span class="t-cmt"># jump to C (M-mode)</span>
+<span class="t-lbl">spin:</span>
+    j <span class="t-lbl">spin</span>                  <span class="t-cmt"># safety — never reached</span>`,
+    csr:{satp:'0x0 (off)',mepc:'—',sepc:'—',stvec:'—',mstatus:'—',medeleg:'—',tp:'undefined'},
+    sp:'stack0 + (hartid+1) × 4096'
+  },
+  {
+    num:'2', title:'start() — Machine Mode', file:'kernel/start.c · Line 15',
+    color:'#e06050', bg:'rgba(200,80,60,0.1)', border:'rgba(200,80,60,0.2)',
+    mode:'M', modeLabel:'Machine Mode', modeDesc:'Paging OFF · Ends with mret',
+    desc:'The only C function that runs in Machine Mode. Configures all M-mode CSRs to prepare for Supervisor mode, then executes <code>mret</code> which simultaneously switches privilege to S-mode and jumps to <code>main()</code>.',
+    steps:[
+      {n:1, t:'mstatus.MPP = 01 (Supervisor)', d:'When <code>mret</code> executes, the CPU reads the Machine Previous Privilege field (<code>MPP</code>) to know which mode to return to. Setting it to <code>01</code> means "return to Supervisor mode."'},
+      {n:2, t:'mepc = &main', d:'<code>mret</code> sets <code>PC = mepc</code>. By loading <code>&amp;main</code> here, <code>mret</code> will transfer control to <code>main()</code> in S-mode.'},
+      {n:3, t:'satp = 0 (paging off)', d:'Virtual memory stays disabled. All addresses are physical until <code>kvminithart()</code> is called in Stage 3. This is safe because the boot stacks are identity-mapped (VA=PA).'},
+      {n:4, t:'medeleg=0xFFFF, mideleg=0xFFFF', d:'Delegates all 16 exception types and all interrupt types to Supervisor mode. Without this, every trap would bounce through M-mode firmware — unnecessary overhead.'},
+      {n:5, t:'PMP: grant S-mode full RAM access', d:'<code>pmpaddr0=0x3FFFFFFFFFFFFF, pmpcfg0=0xF</code>. Without this, S-mode cannot access any physical memory at all — RISC-V requires explicit M-mode permission grants.'},
+      {n:6, t:'timerinit() — SSTC timer', d:'Enables the SSTC extension so S-mode can program <code>stimecmp</code> directly. Sets <code>stimecmp = time + 1000000</code> to schedule the first timer interrupt ~1ms later.'},
+      {n:7, t:'tp = mhartid', d:'Stores the hart ID in the <code>tp</code> (thread pointer) register. Since <code>mhartid</code> is inaccessible in S-mode, <code>tp</code> is the only way to identify the current CPU later. <code>cpuid()</code> reads <code>tp</code>.'},
+      {n:8, t:'mret → drops to S-mode, PC = main()', d:'<code>mret</code> atomically: sets <code>PC=mepc</code>, switches privilege to <code>mstatus.MPP</code> (Supervisor), clears <code>MPP</code>. M-mode is never re-entered for the lifetime of the OS.'},
+    ],
+    code:`<span class="t-kw">void</span> <span class="t-fn">start</span>() {
+  <span class="t-cmt">// [1] Return to Supervisor mode on mret</span>
+  <span class="t-kw">unsigned long</span> x = <span class="t-fn">r_mstatus</span>();
+  x &amp;= ~MSTATUS_MPP_MASK;
+  x |= MSTATUS_MPP_S;   <span class="t-cmt">// MPP = 01 (S-mode)</span>
+  <span class="t-fn">w_mstatus</span>(x);
+
+  <span class="t-cmt">// [2] Jump to main() when mret executes</span>
+  <span class="t-fn">w_mepc</span>((<span class="t-kw">uint64</span>)main);
+
+  <span class="t-cmt">// [3] Paging off until kvminithart()</span>
+  <span class="t-fn">w_satp</span>(0);
+
+  <span class="t-cmt">// [4] All traps → Supervisor mode</span>
+  <span class="t-fn">w_medeleg</span>(0xffff);
+  <span class="t-fn">w_mideleg</span>(0xffff);
+  <span class="t-fn">w_sie</span>(<span class="t-fn">r_sie</span>() | SIE_SEIE | SIE_STIE);
+
+  <span class="t-cmt">// [5] PMP: let S-mode access all RAM</span>
+  <span class="t-fn">w_pmpaddr0</span>(0x3fffffffffffffull);
+  <span class="t-fn">w_pmpcfg0</span>(0xf);
+
+  <span class="t-cmt">// [6] Timer init (SSTC extension)</span>
+  <span class="t-fn">timerinit</span>();
+
+  <span class="t-cmt">// [7] tp = hartid for cpuid()</span>
+  <span class="t-fn">w_tp</span>(<span class="t-fn">r_mhartid</span>());
+
+  <span class="t-cmt">// Drop to S-mode, jump to main()</span>
+  <span class="t-kw">asm volatile</span>(<span class="t-str">"mret"</span>);
+}`,
+    csr:{satp:'0x0 (off)',mepc:'&main (set)',sepc:'—',stvec:'—',mstatus:'MPP=S',medeleg:'0xFFFF',tp:'hartid (set)'},
+    sp:'stack0 + (hartid+1)×4096 (unchanged)'
+  },
+  {
+    num:'3', title:'main() — Supervisor Mode', file:'kernel/main.c · Line 13',
+    color:'#3a9de0', bg:'rgba(58,157,224,0.1)', border:'rgba(58,157,224,0.2)',
+    mode:'S', modeLabel:'Supervisor Mode', modeDesc:'Hart 0 inits, harts 1-7 wait',
+    desc:'All harts land here simultaneously. Hart 0 performs the complete OS initialization sequence. Harts 1–7 spin-wait on a volatile flag until hart 0 sets <code>started=1</code>. A critical milestone: <code>kvminithart()</code> enables paging mid-sequence.',
+    steps:[
+      {n:1, t:'consoleinit() + printfinit()', d:'Initialize UART driver and printf spinlock. First I/O capability — allows printing "xv6 kernel is booting."'},
+      {n:2, t:'kinit() — physical page allocator', d:'<code>freerange(end, PHYSTOP)</code> walks all free pages from after the kernel binary to 0x88000000, building <code>kmem.freelist</code>. ~32,000 free 4 KB pages available after this.'},
+      {n:3, t:'kvminit() — build kernel page table', d:'<code>kvmmake()</code> creates a Sv39 page table. Maps UART, PLIC, VirtIO (MMIO), kernel text (R/X), data (R/W), TRAMPOLINE, and calls <code>proc_mapstacks()</code> to allocate 64 kernel stacks.'},
+      {n:4, t:'kvminithart() ← PAGING TURNS ON', d:'Writes <code>satp</code> with the kernel page table PPN + Sv39 mode bit. <code>sfence.vma</code> flushes TLB. From this instruction onward, virtual addressing is active. VA ≠ PA except for direct-mapped regions.'},
+      {n:5, t:'procinit() — process table', d:'Initializes all 64 <code>struct proc</code> slots, sets each <code>p→kstack = KSTACK(p)</code>. The stack memory was already allocated in <code>kvminit()</code>.'},
+      {n:6, t:'trapinit() + trapinithart()', d:'Sets <code>stvec = kernelvec</code>. All kernel traps now go to <code>kernelvec.S</code> which saves registers and calls <code>kerneltrap()</code>.'},
+      {n:7, t:'plicinit() + plicinithart()', d:'Configure the PLIC to route UART (IRQ 10) and VirtIO (IRQ 1) interrupts to hart 0 at priority 1.'},
+      {n:8, t:'binit/iinit/fileinit/virtio_disk_init', d:'Initialize buffer cache, inode table, file descriptor table, and VirtIO MMIO disk driver. File system subsystem is now operational.'},
+      {n:9, t:'userinit() — create PID 1', d:'Creates the first user process. See Stage 4 for details.'},
+      {n:10, t:'started=1 — release harts 1-7', d:'Memory barrier (<code>__sync_synchronize()</code>) then <code>started=1</code>. Secondary harts exit their spin loop, enable paging and install their own stvec.'},
+    ],
+    code:`<span class="t-kw">void</span> <span class="t-fn">main</span>() {
+  <span class="t-kw">if</span>(<span class="t-fn">cpuid</span>() == 0) {
+    <span class="t-fn">consoleinit</span>(); <span class="t-fn">printfinit</span>();
+    <span class="t-fn">printf</span>(<span class="t-str">"xv6 kernel is booting\\n"</span>);
+    <span class="t-fn">kinit</span>();           <span class="t-cmt">// physical page allocator</span>
+    <span class="t-fn">kvminit</span>();         <span class="t-cmt">// kernel page table</span>
+    <span class="t-fn">kvminithart</span>();     <span class="t-cmt">// ← PAGING ON</span>
+    <span class="t-fn">procinit</span>();        <span class="t-cmt">// process table + kstacks</span>
+    <span class="t-fn">trapinit</span>(); <span class="t-fn">trapinithart</span>();
+    <span class="t-fn">plicinit</span>(); <span class="t-fn">plicinithart</span>();
+    <span class="t-fn">binit</span>(); <span class="t-fn">iinit</span>(); <span class="t-fn">fileinit</span>();
+    <span class="t-fn">virtio_disk_init</span>();
+    <span class="t-fn">userinit</span>();       <span class="t-cmt">// PID 1</span>
+    __sync_synchronize();
+    started = 1;       <span class="t-cmt">// release harts 1-7</span>
+  } <span class="t-kw">else</span> {
+    <span class="t-kw">while</span>(started == 0);  <span class="t-cmt">// spin wait</span>
+    __sync_synchronize();
+    <span class="t-fn">kvminithart</span>();
+    <span class="t-fn">trapinithart</span>();
+    <span class="t-fn">plicinithart</span>();
+  }
+  <span class="t-fn">scheduler</span>();  <span class="t-cmt">// never returns</span>
+}`,
+    csr:{satp:'0→kpgtbl (ON!)',mepc:'—',sepc:'—',stvec:'kernelvec',mstatus:'MPP cleared',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'stack0 (same boot stack)'
+  },
+  {
+    num:'4', title:'userinit() → scheduler()', file:'kernel/proc.c · Line 220',
+    color:'#2ec49a', bg:'rgba(46,196,154,0.1)', border:'rgba(46,196,154,0.2)',
+    mode:'S', modeLabel:'Supervisor Mode', modeDesc:'Paging ON · Creates PID 1',
+    desc:'Creates the ancestor of all user processes (PID 1). Sets up its user page table, loads <code>initcode</code> at VA 0x0, and marks it RUNNABLE. Then <code>scheduler()</code> finds it and does the first context switch via <code>swtch()</code>.',
+    steps:[
+      {n:1, t:'allocproc() — find UNUSED slot', d:'Scans <code>proc[64]</code> for a free slot. Assigns PID=1. Allocates one page for the trapframe via <code>kalloc()</code>.'},
+      {n:2, t:'proc_pagetable() — user page table', d:'Creates a root page table page. Maps TRAMPOLINE (R/X, no PTE_U) at MAXVA−1pg and TRAPFRAME (R/W, no PTE_U) at MAXVA−2pg. Both visible only to the kernel.'},
+      {n:3, t:'Set initial kernel context', d:'<code>context.ra = forkret</code> — when <code>swtch()</code> restores this context, execution jumps to <code>forkret</code>. <code>context.sp = KSTACK(0)+PGSIZE</code> — top of PID 1\'s kernel stack.'},
+      {n:4, t:'uvminit() — load initcode at VA 0x0', d:'Copies the <code>initcode[]</code> binary (an inline byte array) into a freshly allocated page mapped at user VA 0. Contains a single <code>exec("/init")</code> system call.'},
+      {n:5, t:'trapframe: epc=0, sp=PGSIZE', d:'User PC will start at VA 0 (first byte of initcode). User stack pointer starts at 0x1000 (top of first page), growing downward.'},
+      {n:6, t:'scheduler() + swtch()', d:'<code>swtch(&cpu→context, &p→context)</code> saves scheduler registers onto stack0, then restores PID 1\'s context: <code>ra=forkret</code>, <code>sp=KSTACK(0)+PGSIZE</code>. CPU is now on PID 1\'s kernel stack.'},
+      {n:7, t:'forkret() → prepare_return() → sret', d:'<code>forkret</code> calls <code>prepare_return()</code> which sets <code>stvec=TRAMPOLINE+offset</code>, fills trapframe kernel fields, sets <code>sstatus.SPP=0</code> (user mode return), <code>sepc=0</code>. Trampoline\'s <code>userret</code> switches satp and executes <code>sret</code>.'},
+    ],
+    code:`<span class="t-kw">void</span> <span class="t-fn">userinit</span>(<span class="t-kw">void</span>) {
+  <span class="t-kw">struct</span> proc *p = <span class="t-fn">allocproc</span>();
+  initproc = p;
+
+  <span class="t-cmt">// map initcode at user VA 0x0</span>
+  <span class="t-fn">uvminit</span>(p->pagetable, initcode, <span class="t-kw">sizeof</span>(initcode));
+  p->sz = PGSIZE;
+
+  <span class="t-cmt">// user PC = 0, user sp = PGSIZE</span>
+  p->trapframe->epc = 0;
+  p->trapframe->sp  = PGSIZE;
+  p->cwd = <span class="t-fn">namei</span>(<span class="t-str">"/"</span>);
+  p->state = RUNNABLE;
+  <span class="t-fn">release</span>(&p->lock);
+}
+
+<span class="t-cmt">// In allocproc() — kernel context setup:</span>
+p->context.ra = (<span class="t-kw">uint64</span>)forkret;   <span class="t-cmt">// swtch returns here</span>
+p->context.sp = p->kstack + PGSIZE;  <span class="t-cmt">// kernel stack top</span>`,
+    csr:{satp:'kpgtbl (kernel)',mepc:'—',sepc:'0x0 (set for sret)',stvec:'uservec (trampoline)',mstatus:'—',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'KSTACK(0)+PGSIZE (proc kernel stack!)'
+  },
+  {
+    num:'5', title:'User Space', file:'initcode → /init → /sh · U-mode',
+    color:'#9b6af0', bg:'rgba(155,106,240,0.1)', border:'rgba(155,106,240,0.2)',
+    mode:'U', modeLabel:'User Mode', modeDesc:'Paging ON · User page table',
+    desc:'<code>sret</code> drops the CPU to User mode with PC=0 and the user page table loaded. <code>initcode</code> immediately calls <code>exec("/init")</code> via <code>ecall</code>. <code>/init</code> opens the console and starts the shell. System calls re-enter the kernel through the trampoline.',
+    steps:[
+      {n:1, t:'sret — CPU drops to U-mode, PC=0', d:'<code>sret</code> sets PC=sepc=0, switches to User mode (sstatus.SPP=0), enables interrupts (SPIE→SIE). The user page table is already loaded from <code>userret</code>.'},
+      {n:2, t:'initcode @ VA 0x0 executes', d:'First user instruction. <code>initcode</code> is a tiny binary that sets <code>a7=SYS_exec</code>, loads "/init" arguments, and executes <code>ecall</code>.'},
+      {n:3, t:'ecall → TRAMPOLINE (uservec)', d:'CPU switches to S-mode, jumps to <code>stvec = TRAMPOLINE+offset</code>. <code>uservec</code> saves all registers to TRAPFRAME, loads kernel sp/satp from TRAPFRAME, switches page table, calls <code>usertrap()</code>.'},
+      {n:4, t:'exec("/init") executes', d:'Kernel loads the <code>/init</code> ELF from VirtIO disk, replaces process image. Returns to user mode in <code>/init</code>.'},
+      {n:5, t:'/init opens console, forks /sh', d:'<code>/init</code> opens <code>/dev/console</code> as fds 0,1,2. Forks a child and exec\'s <code>/sh</code>. The shell begins. Every command uses <code>fork()</code> + <code>exec()</code>.'},
+    ],
+    code:`<span class="t-cmt">// initcode (user/initcode.S) — first user code</span>
+<span class="t-lbl">start:</span>
+    la   <span class="t-reg">a0</span>, <span class="t-lbl">init</span>      <span class="t-cmt"># a0 = "/init\0"</span>
+    la   <span class="t-reg">a1</span>, <span class="t-lbl">argv</span>      <span class="t-cmt"># a1 = ["/init", 0]</span>
+    li   <span class="t-reg">a7</span>, SYS_exec  <span class="t-cmt"># syscall number</span>
+    ecall                <span class="t-cmt"># → TRAMPOLINE → usertrap</span>
+
+<span class="t-cmt">// /init (user/init.c)</span>
+<span class="t-fn">open</span>(<span class="t-str">"console"</span>, O_RDWR);  <span class="t-cmt">// fd 0,1,2</span>
+<span class="t-fn">fork</span>() → <span class="t-fn">exec</span>(<span class="t-str">"/sh"</span>);     <span class="t-cmt">// start shell</span>`,
+    csr:{satp:'upgtbl (user page table)',mepc:'—',sepc:'0x0',stvec:'uservec (trampoline)',mstatus:'—',medeleg:'—',tp:'hartid'},
+    sp:'user stack (VA 0x1000, grows ↓)'
+  },
+];
+
+function showStage(idx) {
+  document.querySelectorAll('.stepper-tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.stage-panel').forEach(p => p.classList.remove('active'));
+  const existing = document.getElementById('stage-panel-' + idx);
+  if (existing) { existing.classList.add('active'); return; }
+  const d = stageData[idx];
+  const modeColors = { M: ['#e05c2e','rgba(224,92,46,0.2)'], S: ['#3a9de0','rgba(58,157,224,0.2)'], U: ['#9b6af0','rgba(155,106,240,0.2)'] };
+  const [mc, mb] = modeColors[d.mode];
+
+  let stepsHtml = d.steps.map(s => `<div class="step-item">
+    <div class="step-num" style="background:${d.bg};color:${d.color};">${s.n}</div>
+    <div class="step-content"><div class="step-title">${s.t}</div><div class="step-desc">${s.d}</div></div>
+  </div>`).join('');
+
+  let csrHtml = Object.entries(d.csr).map(([k,v]) => `<div class="csr-row"><span class="csr-name" style="color:${d.color};">${k}</span><span class="csr-val">${v}</span></div>`).join('');
+
+  const panel = document.createElement('div');
+  panel.className = 'stage-panel active';
+  panel.id = 'stage-panel-' + idx;
+  panel.innerHTML = `
+    <div class="stage-left">
+      <div class="stage-title-row">
+        <div class="stage-num-badge" style="background:${d.bg};color:${d.color};border:1px solid ${d.border};">${d.num}</div>
+        <div>
+          <div class="stage-main-title">${d.title}</div>
+          <div class="stage-file"><code>${d.file}</code></div>
+        </div>
+        <div style="margin-left:auto;"><span class="badge badge-${d.mode.toLowerCase()}">${d.mode}-MODE</span></div>
+      </div>
+      <div class="stage-desc">${d.desc}</div>
+      ${d.code ? `<div style="margin-bottom:20px;"><div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:10px;">Source Code</div><div class="code-block">${d.code}</div></div>` : ''}
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:12px;">Steps</div>
+      <div class="step-list">${stepsHtml}</div>
+    </div>
+    <div class="stage-right">
+      <div class="state-panel-section">
+        <div class="mode-indicator" style="background:${mb};border-color:${d.border};">
+          <div class="mode-dot" style="background:${mc};"></div>
+          <div class="mode-label" style="color:${mc};">${d.modeLabel}</div>
+          <div class="mode-desc">${d.modeDesc}</div>
+        </div>
+      </div>
+      <div class="state-panel-section">
+        <div class="state-label">CSR Values at End of Stage</div>
+        ${csrHtml}
+      </div>
+      <div class="state-panel-section">
+        <div class="state-label">Stack Pointer (sp)</div>
+        <div class="stack-mini">
+          <div class="stack-row active" style="font-size:12px;color:${mc};">${d.sp}</div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('stages-container').appendChild(panel);
+}
+
+// init stage 0
+showStage(0);
+
+/* ── Memory Map Data ──────────────────────────────────────────── */
+const memRegions = [
+  {addr:'0x00001000', name:'QEMU Boot ROM', color:'#e05c2e', size:'4KB', desc:'Provided by QEMU firmware. Parses the kernel ELF passed via <code>-kernel</code> and copies PT_LOAD segments into RAM. Resets all hart PCs to 0x80000000.',
+   fields:[{icon:'🖥️',name:'Role',val:'ELF loader'},{icon:'⚡',name:'Actions',val:'Copy ELF segs, reset all harts to KERNBASE'},{icon:'🔒',name:'Access',val:'M-mode only'}], tag:'hardware'},
+  {addr:'0x02000000', name:'CLINT', color:'#a06040', size:'64KB', desc:'Core-Local Interruptor. Provides per-hart software interrupts (MSIP) and a global time counter. xv6 no longer uses CLINT directly — it uses the SSTC extension to set <code>stimecmp</code> instead.',
+   fields:[{icon:'⏱️',name:'Reg: mtime',val:'64-bit monotonic timer (read by all harts)'},{icon:'🔔',name:'Reg: mtimecmp',val:'Timer compare (per-hart)'},{icon:'📡',name:'xv6 use',val:'Superseded by SSTC (stimecmp)'}], tag:'mmio'},
+  {addr:'0x0C000000', name:'PLIC', color:'#a04080', size:'64MB', desc:'Platform-Level Interrupt Controller. Routes hardware interrupts from devices (UART=IRQ10, VirtIO=IRQ1) to specific harts. Configured by <code>plicinit()</code> and <code>plicinithart()</code>.',
+   fields:[{icon:'🔀',name:'UART IRQ',val:'10 (priority 1)'},{icon:'💿',name:'VirtIO IRQ',val:'1 (priority 1)'},{icon:'🎯',name:'Routing',val:'Each hart has its own enable/claim registers'}], tag:'mmio'},
+  {addr:'0x10000000', name:'UART0', color:'#806040', size:'4KB', desc:'16550-compatible UART serial console. Used by <code>consoleinit()</code> for stdin/stdout. The kernel writes characters by polling the LSR (Line Status Register) bit.',
+   fields:[{icon:'📺',name:'Function',val:'Serial I/O console'},{icon:'🔧',name:'Init',val:'consoleinit() in main()'},{icon:'⚡',name:'IRQ',val:'UART0_IRQ = 10 via PLIC'}], tag:'mmio'},
+  {addr:'0x10001000', name:'VirtIO Disk', color:'#604080', size:'4KB', desc:'VirtIO MMIO block device. Provides disk access for the file system. Initialized by <code>virtio_disk_init()</code>. Uses interrupt-driven I/O via PLIC IRQ 1.',
+   fields:[{icon:'💿',name:'Function',val:'Block device (disk R/W)'},{icon:'🔧',name:'Init',val:'virtio_disk_init() in main()'},{icon:'⚡',name:'IRQ',val:'VIRTIO0_IRQ = 1 via PLIC'}], tag:'mmio'},
+  {addr:'0x80000000', name:'KERNBASE — Kernel Image', color:'#3a9de0', size:'variable', desc:'The kernel ELF is loaded here. <code>kernel.ld</code> places <code>_entry</code> at exactly this address. Contains all kernel text, rodata, data, bss, and the <code>stack0</code> boot stacks.',
+   fields:[{icon:'⚙️',name:'_entry',val:'First instruction at 0x80000000'},{icon:'📝',name:'.text',val:'Kernel code (R/X)'},{icon:'📊',name:'.data/.bss',val:'Kernel data + stack0[32KB]'},{icon:'🎯',name:'Trampoline',val:'Aligned 4KB page in .text'}], tag:'kernel'},
+  {addr:'end', name:'Free Page Pool (kalloc)', color:'#2ec49a', size:'~128MB', desc:'From the <code>end</code> symbol (first byte after kernel binary) to PHYSTOP. <code>kinit()</code> calls <code>freerange(end, PHYSTOP)</code> which adds all pages to <code>kmem.freelist</code>. Used for page tables, kernel stacks, user memory.',
+   fields:[{icon:'🔓',name:'Initialized by',val:'kinit() in main()'},{icon:'📦',name:'Unit',val:'4096 bytes per page'},{icon:'🔗',name:'Structure',val:'Singly-linked freelist (kmem.freelist)'}], tag:'kernel'},
+  {addr:'0x88000000', name:'PHYSTOP', color:'#c0a060', size:'—', desc:'End of usable physical RAM. Defined as <code>KERNBASE + 128×1024×1024 = 0x88000000</code>. <code>kinit()</code> uses this as the upper bound for the free page pool.',
+   fields:[{icon:'🚧',name:'Value',val:'0x88000000'},{icon:'📐',name:'Size',val:'128 MB above KERNBASE'},{icon:'🔒',name:'Role',val:'Upper bound for kalloc'}], tag:'kernel'},
+];
+
+function buildMemMap() {
+  const c = document.getElementById('membar-container');
+  memRegions.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'mem-bar';
+    row.onclick = () => selectMemRegion(i, row);
+    row.innerHTML = `<span class="mem-addr-label">${r.addr}</span>
+      <div class="mem-block" style="background:${r.color}22;border:1px solid ${r.color}44;color:${r.color};">${r.name}</div>`;
+    c.appendChild(row);
+    if (i < memRegions.length - 1) {
+      const gap = document.createElement('div');
+      gap.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:2px 10px;"><span style="font-size:9px;color:var(--text4);width:86px;font-family:monospace;">···</span><div class="mem-block-gap"></div></div>`;
+      c.appendChild(gap);
+    }
+  });
+}
+
+function selectMemRegion(i, el) {
+  document.querySelectorAll('.mem-bar').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  const r = memRegions[i];
+  const fieldsHtml = r.fields.map(f => `<div class="mem-field"><div class="mem-field-icon">${f.icon}</div><div><div class="mem-field-name">${f.name}</div><div class="mem-field-val">${f.val}</div></div></div>`).join('');
+  document.getElementById('memmap-detail').innerHTML = `
+    <div class="mem-detail-header">
+      <div class="mem-detail-dot" style="background:${r.color};"></div>
+      <div><div class="mem-detail-addr">${r.addr}</div></div>
+      <div style="margin-left:auto;"><span class="badge badge-y">${r.size}</span></div>
+    </div>
+    <div class="mem-detail-name">${r.name}</div>
+    <div class="mem-detail-desc" style="margin-top:6px;">${r.desc}</div>
+    <div class="mem-detail-fields" style="margin-top:18px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--radius);">${fieldsHtml}</div>`;
+}
+buildMemMap();
+
+/* ── Boot Playground ─────────────────────────────────────────── */
+const pgSteps = [
+  { file:'QEMU Firmware', fileDot:'#e05c2e', mode:'M', modeLabel:'Machine Mode', modeDesc:'Hardware reset state',
+    lines:['', '  QEMU -kernel xv6.img', '  ┌─────────────────────────────────────────┐', '  │  1. Parse kernel ELF program headers    │', '  │  2. Copy PT_LOAD segments to 0x80000000 │', '  │  3. Reset all hart PCs to 0x80000000    │', '  └─────────────────────────────────────────┘', ''],
+    current:1, executed:[],
+    desc:'<strong>QEMU firmware begins.</strong> The boot ROM at <code>0x1000</code> reads the kernel ELF passed via <code>-kernel</code> and copies all loadable segments into physical RAM starting at <code>0x80000000</code>.',
+    extra:'<div style="font-size:12px;color:var(--text3);margin-top:8px;">No kernel code is running yet. QEMU is acting as the hardware firmware.</div>',
+    csr:{satp:'0x0',mepc:'—',sepc:'—',stvec:'—',mstatus:'reset',tp:'undefined'},
+    sp:'none',changed:[]
+  },
+  { file:'kernel/entry.S', fileDot:'#e8a020', mode:'M', modeLabel:'Machine Mode', modeDesc:'Paging OFF · VA = PA',
+    lines:['', '_entry:        # 0x80000000 — first instruction', '    la  sp, stack0       # load stack0 base', '    li  a0, 4096         # 4 KB per hart', '    csrr a1, mhartid    # read hartid', '    addi a1, a1, 1      # offset = hartid+1', '    mul  a0, a0, a1     # bytes = (h+1)*4096', '    add  sp, sp, a0     # sp = top of slice', '    call start', 'spin: j spin             # safety net', ''],
+    current:2, executed:[],
+    desc:'<strong>_entry executes at 0x80000000.</strong> Sets <code>sp</code> to the top of this hart\'s 4KB slice in <code>stack0</code>. Formula: <code>sp = stack0 + (hartid+1) × 4096</code>.',
+    csr:{satp:'0x0',mepc:'—',sepc:'—',stvec:'—',mstatus:'—',tp:'undefined'},
+    sp:'stack0 + (hartid+1) × 4096',changed:['sp']
+  },
+  { file:'kernel/start.c', fileDot:'#e06050', mode:'M', modeLabel:'Machine Mode', modeDesc:'Configuring CSRs',
+    lines:['void start() {', '  // Set return privilege = Supervisor', '  unsigned long x = r_mstatus();', '  x &= ~MSTATUS_MPP_MASK;', '  x |= MSTATUS_MPP_S;    // MPP = 01', '  w_mstatus(x);', '', '  // Return address = main()', '  w_mepc((uint64)main);', '', '  // Paging off until kvminithart()', '  w_satp(0);', ''],
+    current:5, executed:[2,3,4],
+    desc:'<strong>start() sets mstatus.MPP = Supervisor.</strong> When <code>mret</code> runs, the CPU will switch to S-mode. <code>mepc = &amp;main</code> so <code>mret</code> jumps to <code>main()</code>.',
+    csr:{satp:'0x0',mepc:'&main (set!)',sepc:'—',stvec:'—',mstatus:'MPP=01(S)',tp:'undefined'},
+    sp:'stack0 + (hartid+1) × 4096',changed:['mepc','mstatus']
+  },
+  { file:'kernel/start.c', fileDot:'#e06050', mode:'M', modeLabel:'Machine Mode', modeDesc:'Delegating traps',
+    lines:['  // Delegate ALL traps to Supervisor mode', '  w_medeleg(0xffff);', '  w_mideleg(0xffff);', '  w_sie(r_sie() | SIE_SEIE | SIE_STIE);', '', '  // PMP: S-mode can access all RAM', '  w_pmpaddr0(0x3fffffffffffffull);', '  w_pmpcfg0(0xf); // R/W/X, TOR mode', '', '  // Timer (SSTC extension)', '  timerinit();', '', '  w_tp(r_mhartid()); // tp = hartid', ''],
+    current:1, executed:[0,1,2],
+    desc:'<strong>Trap delegation and PMP configured.</strong> All exceptions/interrupts now go to S-mode. PMP grants S-mode full physical memory access (without this, S-mode cannot read/write any RAM).',
+    csr:{satp:'0x0',mepc:'&main',sepc:'—',stvec:'—',mstatus:'MPP=01(S)',medeleg:'0xFFFF',tp:'hartid (set!)'},
+    sp:'stack0 + (hartid+1) × 4096',changed:['medeleg','tp']
+  },
+  { file:'kernel/start.c', fileDot:'#e06050', mode:'M→S', modeLabel:'M → S Transition', modeDesc:'mret executes!',
+    lines:['  // All setup done — drop to Supervisor mode', '  asm volatile("mret");', '  // ↑↑↑ This instruction:', '  // 1. Sets PC = mepc = &main', '  // 2. Sets privilege = mstatus.MPP = S', '  // 3. Clears MPP bits', '  // 4. M-mode is never entered again', ''],
+    current:1, executed:[0],
+    desc:'<strong>mret fires — M-mode exits forever!</strong> CPU simultaneously sets PC=mepc (jumps to main()), switches privilege to Supervisor mode, and clears MPP. This is the only M→S transition in xv6\'s lifetime.',
+    csr:{satp:'0x0',mepc:'&main',sepc:'—',stvec:'—',mstatus:'MPP=00 (cleared)',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'stack0 + (hartid+1) × 4096',changed:['mstatus']
+  },
+  { file:'kernel/main.c', fileDot:'#3a9de0', mode:'S', modeLabel:'Supervisor Mode', modeDesc:'Kernel initializing',
+    lines:['void main() {', '  if(cpuid() == 0) {        // hart 0 only', '    consoleinit();          // UART console', '    printfinit();           // printf lock', '    printf("xv6 kernel is booting\\n");', '    kinit();                // page allocator', '    kvminit();              // page table', '    kvminithart();          // ← PAGING ON', '    procinit();', '    trapinit(); trapinithart();', '    plicinit(); plicinithart();', ''],
+    current:7, executed:[0,1,2,3,4,5,6],
+    desc:'<strong>main() runs in Supervisor mode.</strong> Hart 0 initializes all kernel subsystems. The critical milestone: <code>kvminithart()</code> writes <code>satp</code> and enables paging. After this, VA ≠ PA for non-direct-mapped regions.',
+    csr:{satp:'kpgtbl (ON!)',mepc:'—',sepc:'—',stvec:'kernelvec',mstatus:'SPP cleared',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'stack0 (same boot stack)',changed:['satp','stvec']
+  },
+  { file:'kernel/proc.c', fileDot:'#2ec49a', mode:'S', modeLabel:'Supervisor Mode', modeDesc:'Creating PID 1',
+    lines:['void userinit(void) {', '  struct proc *p = allocproc();', '  // allocproc sets:', '  //   context.ra = forkret', '  //   context.sp = KSTACK(0) + PGSIZE', '  ', '  uvminit(p->pagetable, initcode, sizeof(initcode));', '  p->sz = PGSIZE;', '  p->trapframe->epc = 0;    // user PC = VA 0', '  p->trapframe->sp  = PGSIZE; // user stack', '  p->state = RUNNABLE;', '}'],
+    current:1, executed:[0],
+    desc:'<strong>PID 1 is created.</strong> <code>allocproc()</code> sets up the proc structure with <code>context.ra=forkret</code> and <code>context.sp=KSTACK(0)+PGSIZE</code>. When <code>swtch()</code> restores this context, execution starts at <code>forkret</code> on PID 1\'s kernel stack.',
+    csr:{satp:'kpgtbl',mepc:'—',sepc:'0x0',stvec:'uservec (tramp)',mstatus:'SPP=0',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'KSTACK(0)+PGSIZE ← switched!',changed:['sepc','stvec','sp']
+  },
+  { file:'kernel/trampoline.S', fileDot:'#9b6af0', mode:'S→U', modeLabel:'S → U Transition', modeDesc:'sret to user space',
+    lines:['userret:                    # called from prepare_return()', '  sfence.vma zero, zero    # flush TLB', '  csrw satp, a0            # switch to user page table', '  sfence.vma zero, zero', '  li a0, TRAPFRAME', '  # restore all user registers from trapframe', '  ld ra, 40(a0)', '  ld sp, 48(a0)  # user stack pointer', '  ...', '  ld a0, 112(a0) # restore user a0 last', '  sret             # ← drops to U-mode, PC=sepc=0'],
+    current:10, executed:[0,1,2,3,4,5,6,7,8,9],
+    desc:'<strong>sret — the CPU drops to User mode!</strong> Switches satp to user page table, restores all user registers from TRAPFRAME, then sret sets PC=sepc=0 and switches to U-mode. Execution enters user space at VA 0x0 (initcode).',
+    csr:{satp:'upgtbl (user!)',mepc:'—',sepc:'0x0',stvec:'uservec',mstatus:'SPP=0,SPIE=1',medeleg:'0xFFFF',tp:'hartid'},
+    sp:'user stack (VA 0x1000)',changed:['satp','sp','mstatus']
+  },
+  { file:'user/initcode.S', fileDot:'#9b6af0', mode:'U', modeLabel:'User Mode', modeDesc:'First user instruction!',
+    lines:['# initcode — first user-space code, at VA 0x0', 'start:', '  la  a0, init      # "/init\\0"', '  la  a1, argv      # ["/init", 0]', '  li  a7, SYS_exec  # syscall 7', '  ecall             # → trampoline → usertrap', '', '# On success, process image is replaced by /init', '# /init opens console, forks /sh', '# Shell is now running!'],
+    current:5, executed:[0,1,2,3,4],
+    desc:'<strong>First user instruction at VA 0x0!</strong> <code>initcode</code> calls <code>exec("/init")</code> via <code>ecall</code>. The kernel replaces the process image. <code>/init</code> opens the console and starts <code>/sh</code>. <strong>The system is fully booted.</strong>',
+    csr:{satp:'upgtbl',mepc:'—',sepc:'— (updated on ecall)',stvec:'uservec',mstatus:'SPP=0',medeleg:'—',tp:'hartid'},
+    sp:'user stack (VA 0x1000)',changed:['sepc']
+  },
+];
+
+let pgCurrentStep = -1;
+
+function pgRenderStep(step) {
+  const d = pgSteps[step];
+  // file header
+  document.getElementById('pg-filename').textContent = d.file;
+  document.querySelector('#pg-file-header .pg-file-dot').style.background = d.fileDot;
+  // progress
+  document.getElementById('pg-progress-fill').style.width = ((step+1)/pgSteps.length*100) + '%';
+  // code view
+  const cv = document.getElementById('pg-code-view');
+  cv.innerHTML = d.lines.map((l,i) => {
+    let cls = 'pg-line';
+    if (i === d.current) cls += ' current-line';
+    else if (d.executed && d.executed.includes(i)) cls += ' executed';
+    const esc = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="${cls}"><span class="pg-lnum">${i+1}</span><span class="pg-lcode">${esc}</span></div>`;
+  }).join('');
+  // scroll current line into view
+  const curEl = cv.querySelector('.current-line');
+  if (curEl) curEl.scrollIntoView({block:'center',behavior:'smooth'});
+  // step info
+  document.getElementById('pg-step-info').textContent = `Step ${step+1} / ${pgSteps.length}`;
+  // buttons
+  document.getElementById('pg-btn-back').disabled = step <= 0;
+  document.getElementById('pg-btn-next').disabled = step >= pgSteps.length - 1;
+  // explain panel
+  document.getElementById('pg-desc').innerHTML = d.desc;
+  document.getElementById('pg-extra').innerHTML = d.extra || '';
+  // state panel - mode
+  const modes = {M:['#e05c2e','var(--m-bg)','var(--m-border)','Machine Mode','Full hardware access'],
+    'M→S':['#e09040','rgba(224,144,64,0.1)','rgba(224,144,64,0.25)','M → S Transition','mret executing'],
+    S:['#3a9de0','var(--s-bg)','var(--s-border)','Supervisor Mode','Kernel context'],
+    'S→U':['#9060e0','rgba(144,96,224,0.1)','rgba(144,96,224,0.25)','S → U Transition','sret executing'],
+    U:['#9b6af0','var(--u-bg)','var(--u-border)','User Mode','Restricted access']};
+  const [mc,mb,mbo,ml,ms] = modes[d.mode] || modes.M;
+  const md = document.getElementById('pg-mode-display');
+  md.style.background = mb; md.style.borderColor = mbo;
+  md.innerHTML = `<div class="md-big" style="color:${mc};">${d.mode}</div><div class="md-label">${ml}</div><div class="md-sub">${ms}</div>`;
+  // CSR display
+  const csrd = document.getElementById('pg-csr-display');
+  csrd.innerHTML = Object.entries(d.csr).map(([k,v]) => {
+    const changed = d.changed && d.changed.includes(k);
+    return `<div class="csr-item ${changed?'changed':''}"><span class="ci-name">${k}</span><span class="ci-val">${v}</span></div>`;
+  }).join('');
+  // stack display
+  document.getElementById('pg-stack-display').innerHTML = `
+    <div style="padding:12px 14px;border-radius:var(--radius);border:1px solid ${d.changed&&d.changed.includes('sp')?'var(--s-border)':'var(--border)'};background:${d.changed&&d.changed.includes('sp')?'var(--s-bg)':'rgba(255,255,255,0.02)'};">
+      <div style="font-family:monospace;font-size:13px;font-weight:600;color:${d.changed&&d.changed.includes('sp')?'var(--s-color)':'var(--text)'};">${d.sp}</div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);line-height:1.6;">Stacks grow <strong>downward</strong> on RISC-V. The sp register points to the <em>top</em> of the current stack frame (lowest used address).</div>`;
+}
+
+function pgInit() {
+  pgCurrentStep = 0;
+  pgRenderStep(0);
+}
+function pgNext() {
+  if (pgCurrentStep < pgSteps.length - 1) { pgCurrentStep++; pgRenderStep(pgCurrentStep); }
+}
+function pgBack() {
+  if (pgCurrentStep > 0) { pgCurrentStep--; pgRenderStep(pgCurrentStep); }
+}
+function pgReset() { pgCurrentStep = 0; pgRenderStep(0); }
+function pgRun() {
+  let i = pgCurrentStep;
+  const go = () => { if (i < pgSteps.length-1) { i++; pgCurrentStep=i; pgRenderStep(i); setTimeout(go, 600); } };
+  go();
+}
+function pgTab(name) {
+  document.querySelectorAll('.pg-panel-tab').forEach(t => t.classList.toggle('active', t.getAttribute('onclick').includes("'"+name+"'")));
+  document.querySelectorAll('.pg-panel-pane').forEach(p => p.classList.toggle('active', p.id==='pgpane-'+name));
+}
+pgInit();
+
+/* ── Trampoline Page ─────────────────────────────────────────── */
+function buildTrampoline() {
+  const userRows = [
+    {addr:'0x0000', name:'initcode / user text', perm:'R/X/U', hl:false},
+    {addr:'0x1000', name:'user stack', perm:'R/W/U', hl:false},
+    {addr:'···', name:'(unmapped)', perm:'—', hl:false},
+    {addr:'TRAPFRAME', name:'TRAPFRAME  (p→trapframe)', perm:'R/W, no PTE_U', hl:true},
+    {addr:'TRAMPOLINE', name:'TRAMPOLINE  (trap code)', perm:'R/X, no PTE_U', hl:true},
+  ];
+  const kernelRows = [
+    {addr:'0x80000000', name:'kernel text + _entry', perm:'R/X', hl:false},
+    {addr:'etext', name:'kernel data + free RAM', perm:'R/W', hl:false},
+    {addr:'KSTACK(p)', name:'per-proc kernel stacks', perm:'R/W (guard pages)', hl:false},
+    {addr:'TRAPFRAME', name:'TRAPFRAME  (same phys page)', perm:'R/W, no PTE_U', hl:true},
+    {addr:'TRAMPOLINE', name:'TRAMPOLINE  (same phys page!)', perm:'R/X, no PTE_U', hl:true},
+  ];
+  function buildRows(rows, id) {
+    document.getElementById(id).innerHTML = rows.map(r => `
+      <div class="tramp-va-row ${r.hl?'highlighted':''}">
+        <div class="tramp-va-addr">${r.addr}</div>
+        <div class="tramp-va-block"><div class="tramp-va-name" ${r.hl?'style="color:var(--s-color);"':''}>${r.name}</div></div>
+        <div class="tramp-va-perm" style="color:${r.hl?'var(--yellow)':'var(--text3)'};">${r.perm}</div>
+      </div>`).join('');
+  }
+  buildRows(userRows, 'tramp-user-space');
+  buildRows(kernelRows, 'tramp-kernel-space');
+
+  document.getElementById('uservec-code').innerHTML =
+`<span class="t-lbl">uservec:</span>  <span class="t-cmt"># trap from user space — still on user page table!</span>
+    <span class="t-cmt"># [1] Temporarily save user a0 in sscratch</span>
+    csrw  <span class="t-csr">sscratch</span>, <span class="t-reg">a0</span>
+
+    <span class="t-cmt"># [2] Point a0 at TRAPFRAME (fixed VA in every user page table)</span>
+    li    <span class="t-reg">a0</span>, TRAPFRAME
+
+    <span class="t-cmt"># [3] Save all 31 user registers into TRAPFRAME</span>
+    sd    <span class="t-reg">ra</span>, 40(<span class="t-reg">a0</span>)    <span class="t-cmt"># ...</span>
+    sd    <span class="t-reg">sp</span>, 48(<span class="t-reg">a0</span>)    <span class="t-cmt"># save user stack pointer</span>
+    csrr  <span class="t-reg">t0</span>, <span class="t-csr">sscratch</span>
+    sd    <span class="t-reg">t0</span>, 112(<span class="t-reg">a0</span>)   <span class="t-cmt"># save original a0</span>
+
+    <span class="t-cmt"># [4] Load kernel context from TRAPFRAME (filled by prepare_return)</span>
+    ld    <span class="t-reg">sp</span>, 8(<span class="t-reg">a0</span>)     <span class="t-cmt"># kernel_sp → KSTACK(p)+PGSIZE</span>
+    ld    <span class="t-reg">tp</span>, 32(<span class="t-reg">a0</span>)    <span class="t-cmt"># kernel_hartid → restore tp (cpuid)</span>
+    ld    <span class="t-reg">t0</span>, 16(<span class="t-reg">a0</span>)    <span class="t-cmt"># kernel_trap = usertrap</span>
+    ld    <span class="t-reg">t1</span>, 0(<span class="t-reg">a0</span>)     <span class="t-cmt"># kernel_satp</span>
+
+    <span class="t-cmt"># [5] Switch to kernel page table — CRITICAL STEP</span>
+    sfence.vma zero, zero             <span class="t-cmt"># flush TLB</span>
+    csrw  <span class="t-csr">satp</span>, <span class="t-reg">t1</span>               <span class="t-cmt"># ← TRAMPOLINE must be at same VA in kernel!</span>
+    sfence.vma zero, zero
+
+    <span class="t-cmt"># [6] Jump to usertrap() in C</span>
+    jalr  <span class="t-reg">t0</span>                      <span class="t-cmt"># call usertrap()</span>`;
+
+  document.getElementById('userret-code').innerHTML =
+`<span class="t-lbl">userret:</span>  <span class="t-cmt"># a0 = user satp; called from prepare_return()</span>
+    <span class="t-cmt"># [1] Switch to user page table</span>
+    sfence.vma zero, zero
+    csrw  <span class="t-csr">satp</span>, <span class="t-reg">a0</span>       <span class="t-cmt"># ← TRAMPOLINE must be at same VA in user space!</span>
+    sfence.vma zero, zero
+
+    <span class="t-cmt"># [2] Restore all user registers from TRAPFRAME</span>
+    li    <span class="t-reg">a0</span>, TRAPFRAME
+    ld    <span class="t-reg">ra</span>, 40(<span class="t-reg">a0</span>)
+    ld    <span class="t-reg">sp</span>, 48(<span class="t-reg">a0</span>)   <span class="t-cmt"># restore user stack</span>
+    <span class="t-cmt"># ... all other registers ...</span>
+    ld    <span class="t-reg">a0</span>, 112(<span class="t-reg">a0</span>)  <span class="t-cmt"># restore user a0 LAST (overwrites TRAPFRAME ptr)</span>
+
+    <span class="t-cmt"># [3] Return to user mode</span>
+    sret                  <span class="t-cmt"># PC=sepc, privilege=sstatus.SPP(=0=User)</span>`;
+}
+buildTrampoline();
+
+/* ── Stack Timeline ─────────────────────────────────────────── */
+const stackStages = [
+  { name:'_entry + start() + main()', mode:'M', modeColor:'#e05c2e',
+    desc:'The only stack for the entire early boot sequence.',
+    frames:[
+      {addr:'stack0+4096', label:'Hart 0 top (sp)', note:'sp points here', cur:true},
+      {addr:'stack0+4095..+1', label:'Stack grows ↓ (4 KB max)', note:'unused', cur:false},
+      {addr:'stack0+0', label:'Hart 0 base', note:'bottom', cur:false},
+      {addr:'(other harts)', label:'stack0+8192, +12288...', note:'each has own slice', cur:false},
+    ],
+    note:'No guard pages. 4 KB limit. Set up in 6 assembly instructions before any C code runs.'
+  },
+  { name:'scheduler() → swtch()', mode:'S', modeColor:'#3a9de0',
+    desc:'<code>swtch()</code> atomically transfers sp from stack0 to KSTACK(p).',
+    frames:[
+      {addr:'stack0 (saved)', label:'Scheduler context saved here', note:'cpu→context', cur:false},
+      {addr:'KSTACK(0)+4096', label:'PID 1 kernel stack top (sp)', note:'sp switches here!', cur:true},
+      {addr:'KSTACK(0)+4095..+1', label:'Kernel stack (4 KB)', note:'grows ↓', cur:false},
+      {addr:'(guard page)', label:'Invalid guard page', note:'page fault on overflow', cur:false, guard:true},
+    ],
+    note:'KSTACK(p) = TRAMPOLINE − (p+1)×2×PGSIZE. Surrounded by unmapped guard pages on both sides.'
+  },
+  { name:'forkret → usertrapret', mode:'S', modeColor:'#3a9de0',
+    desc:'Still on KSTACK(0). Prepares trapframe for return to user space.',
+    frames:[
+      {addr:'KSTACK(0)+4096', label:'Stack top', note:'', cur:false},
+      {addr:'KSTACK(0)+...', label:'usertrapret stack frame', note:'current sp', cur:true},
+      {addr:'TRAPFRAME', label:'Trapframe (separate page)', note:'not the stack — kernel fills epc/sp/etc', cur:false},
+    ],
+    note:'prepare_return() fills trapframe.kernel_sp = KSTACK(0)+PGSIZE so future traps restore this stack.'
+  },
+  { name:'sret → User Space', mode:'U', modeColor:'#9b6af0',
+    desc:'sp switches to user space. Kernel stack is dormant until next trap.',
+    frames:[
+      {addr:'VA 0x1000', label:'User stack top (sp)', note:'sp restored from trapframe', cur:true},
+      {addr:'VA 0xFFF..0', label:'User stack grows ↓', note:'1 page initially', cur:false},
+      {addr:'VA 0x0', label:'initcode (text)', note:'epc=0, first instruction here', cur:false},
+    ],
+    note:'On ecall: uservec restores sp = trapframe.kernel_sp = KSTACK(p)+PGSIZE, switching back to kernel stack.'
+  },
+];
+
+function buildStackTimeline() {
+  const c = document.getElementById('stack-timeline');
+  c.innerHTML = stackStages.map((s, i) => `
+    <div class="stack-stage-row">
+      <div class="stack-stage-label">
+        <div class="stack-stage-name">${s.name}</div>
+        <div class="stack-stage-mode" style="margin-top:6px;"><span class="badge badge-${s.mode.toLowerCase()}">${s.mode}-mode</span></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3);line-height:1.5;">${s.desc}</div>
+      </div>
+      <div>
+        <div class="stack-vis-box">
+          ${s.frames.map(f => `<div class="stack-frame ${f.cur?'current-sp':''} ${f.guard?'guard':''}">
+            <span class="stack-frame-addr">${f.addr}</span>
+            <span class="stack-frame-label">${f.label}</span>
+            <span class="stack-frame-tag">${f.note?`<span style="font-size:10px;color:${f.cur?s.modeColor:'var(--text4)'};">${f.note}</span>`:''}</span>
+          </div>`).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text3);padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:6px;border:1px solid var(--border);">💡 ${s.note}</div>
+      </div>
+    </div>
+    ${i < stackStages.length-1 ? '<div style="height:1px;background:linear-gradient(to right,transparent,var(--border2),transparent);margin:8px 0 8px 160px;"></div>' : ''}`).join('');
+}
+buildStackTimeline();
+
+/* ── Source Explorer ─────────────────────────────────────────── */
+const sourceFiles = {
+  entry: {
+    name:'kernel/entry.S', color:'#e8a020',
+    code:[
+      {l:'# qemu -kernel loads the kernel at 0x80000000', cls:'t-cmt'},
+      {l:'# and causes each hart to jump there.', cls:'t-cmt'},
+      {l:'# kernel.ld ensures this code is placed at 0x80000000.', cls:'t-cmt'},
+      {l:'.section .text', cls:'t-dir'},
+      {l:'.global _entry', cls:'t-dir'},
+      {l:'_entry:', cls:'t-lbl', ann:{t:'Kernel entry point',b:'Every hart\'s first instruction. The linker script <code>kernel.ld</code> guarantees this is at physical address <code>0x80000000</code> which QEMU jumps to.'}},
+      {l:'        la sp, stack0', cls:'t-reg', ann:{t:'Load stack base',b:'<code>stack0</code> is a 32 KB array in <code>.bss</code>, declared in <code>start.c</code> as <code>char stack0[4096*NCPU]</code> with 16-byte alignment.'}},
+      {l:'        li a0, 1024*4', cls:''},
+      {l:'        csrr a1, mhartid', cls:'t-csr', ann:{t:'Read hart ID',b:'<code>mhartid</code> is a read-only Machine-mode CSR. Returns 0 for hart 0, 1 for hart 1, etc. Used to compute unique stack slice.'}},
+      {l:'        addi a1, a1, 1', cls:''},
+      {l:'        mul a0, a0, a1', cls:''},
+      {l:'        add sp, sp, a0', cls:'t-reg', ann:{t:'Stack pointer set',b:'sp now points to the top of this hart\'s 4 KB slice. Hart 0: <code>stack0+4096</code>. Stacks grow down, so sp points to the highest address.'}},
+      {l:'        call start', cls:'t-fn', ann:{t:'Jump to C',b:'With a valid stack, the hart can execute C code. <code>start()</code> in <code>start.c</code> runs in Machine Mode.'}},
+      {l:'spin:', cls:'t-lbl'},
+      {l:'        j spin', cls:'', ann:{t:'Safety loop',b:'<code>start()</code> ends with <code>mret</code> and never returns. This loop is a safety net — if it somehow did return, the hart would loop here forever.'}},
+    ],
+    annotations:[
+      {line:6,title:'_entry: First Instruction',body:'Placed at exactly 0x80000000 by the linker script. Every hart starts here in Machine Mode with interrupts disabled and no valid stack pointer.'},
+      {line:7,title:'stack0 Base',body:'The array is in .bss so it\'s zero-initialized. 16-byte alignment satisfies RISC-V ABI stack alignment requirements.'},
+      {line:9,title:'mhartid CSR',body:'Machine Hart ID. Read-only. Not accessible from S-mode or U-mode. xv6 saves it in the tp register (w_tp) before dropping to S-mode.'},
+      {line:12,title:'Stack Pointer Formula',body:'sp = stack0 + (hartid+1) × 4096. The +1 ensures no off-by-one where hart 0\'s sp would equal the base of the array.'},
+      {line:13,title:'call start',body:'call pushes the return address (pc+4) onto the stack and jumps. start() uses the stack for local variables before calling mret.'},
+    ]
+  },
+  start: {
+    name:'kernel/start.c', color:'#e06050',
+    code:[
+      {l:'#include "types.h"', cls:'t-cmt'},
+      {l:'#include "riscv.h"', cls:'t-cmt'},
+      {l:'', cls:''},
+      {l:'__attribute__ ((aligned (16))) char stack0[4096 * NCPU];', cls:'t-str', ann:{t:'Boot stack array',b:'NCPU=8. Total 32KB. The <code>aligned(16)</code> attribute satisfies RISC-V ABI. Lives in .bss (zero-initialized). This is the ONLY stack used from Stage 1 through Stage 5.'}},
+      {l:'', cls:''},
+      {l:'void start()', cls:'t-fn'},
+      {l:'{', cls:''},
+      {l:'  // [1] Return to Supervisor mode on mret', cls:'t-cmt'},
+      {l:'  unsigned long x = r_mstatus();', cls:''},
+      {l:'  x &= ~MSTATUS_MPP_MASK;', cls:''},
+      {l:'  x |= MSTATUS_MPP_S;', cls:'t-cmt', ann:{t:'mstatus.MPP = S-mode',b:'MPP (Machine Previous Privilege) is bits [12:11] of mstatus. Setting MPP=01 tells the CPU: "when mret executes, switch to Supervisor mode."'}},
+      {l:'  w_mstatus(x);', cls:'t-fn'},
+      {l:'  w_mepc((uint64)main);', cls:'t-fn', ann:{t:'mepc = &main',b:'Machine Exception PC. mret loads PC from mepc. Setting it to &main means mret will jump to the start of main() in Supervisor mode.'}},
+      {l:'  w_satp(0);', cls:'t-fn', ann:{t:'Disable paging',b:'satp=0 disables address translation. VA=PA. Stays off until kvminithart() builds and loads the kernel page table.'}},
+      {l:'  w_medeleg(0xffff);', cls:'t-fn', ann:{t:'Delegate all exceptions to S-mode',b:'medeleg is a bitmask: bit N=1 means exception N is handled in S-mode rather than M-mode. 0xFFFF delegates all 16 exception types.'}},
+      {l:'  w_mideleg(0xffff);', cls:'t-fn', ann:{t:'Delegate all interrupts to S-mode',b:'mideleg works the same for interrupts. Together with medeleg, the kernel handles all its own traps without ever bouncing through M-mode.'}},
+      {l:'  w_sie(r_sie() | SIE_SEIE | SIE_STIE);', cls:'t-fn'},
+      {l:'  w_pmpaddr0(0x3fffffffffffffull);', cls:'t-fn', ann:{t:'PMP: full memory grant',b:'Physical Memory Protection. Without this, S-mode cannot access ANY physical memory. This grants R/W/X access to all of physical RAM to S-mode.'}},
+      {l:'  w_pmpcfg0(0xf);', cls:'t-fn'},
+      {l:'  timerinit();', cls:'t-fn', ann:{t:'SSTC timer init',b:'Enables the SSTC extension (stimecmp). S-mode can directly program the timer. Sets stimecmp = time+1000000 to fire the first timer interrupt ~1ms later.'}},
+      {l:'  int id = r_mhartid();', cls:''},
+      {l:'  w_tp(id);', cls:'t-fn', ann:{t:'tp = hartid (permanent)',b:'tp (thread pointer) is reserved by xv6 for the hart ID. Since mhartid is M-mode-only, tp is the only way to identify the CPU in S/U-mode. cpuid() reads r_tp().'}},
+      {l:'  asm volatile("mret");', cls:'t-kw', ann:{t:'THE privilege drop',b:'mret atomically: sets PC=mepc (→main()), switches privilege to mstatus.MPP (→S-mode), clears MPP. M-mode is never entered again for the OS lifetime.'}},
+      {l:'}', cls:''},
+    ],
+    annotations:[
+      {line:3,title:'stack0 — The Boot Stack',body:'Declared here so the linker places it in .bss. All harts share this array with separate 4KB slices. Abandoned after first context switch.'},
+      {line:10,title:'mstatus.MPP',body:'Machine Previous Privilege field, bits [12:11]. 00=U, 01=S, 11=M. mret restores privilege to MPP. xv6 uses this to escape M-mode.'},
+      {line:12,title:'w_mepc',body:'w_mepc() executes: csrw mepc, %0. After this, mret will jump to main() in the kernel.'},
+      {line:17,title:'PMP Configuration',body:'pmpaddr0 in TOR mode with max value covers the range [0, MAX]. pmpcfg0=0xF = R/W/X + TOR mode. Without this, S-mode accesses fault.'},
+      {line:22,title:'mret — The Exit',body:'The only way to lower privilege in RISC-V is via xret instructions (mret, sret). There is no direct "switch privilege" instruction.'},
+    ]
+  },
+  main: {
+    name:'kernel/main.c', color:'#3a9de0',
+    code:[
+      {l:'volatile static int started = 0;', cls:'t-kw', ann:{t:'Multi-hart synchronization flag',b:'volatile: prevents compiler from caching. static: file-scoped. Harts 1-7 spin on this. Hart 0 sets it to 1 after full init.'}},
+      {l:'', cls:''},
+      {l:'void main()', cls:'t-fn'},
+      {l:'{', cls:''},
+      {l:'  if(cpuid() == 0){', cls:'', ann:{t:'Hart 0 only',b:'cpuid() reads tp (set to mhartid in start()). Only hart 0 runs the full initialization. All other harts wait below.'}},
+      {l:'    consoleinit();', cls:'t-fn'},
+      {l:'    printfinit();', cls:'t-fn'},
+      {l:'    printf("xv6 kernel is booting\\n");', cls:'t-fn'},
+      {l:'    kinit();', cls:'t-fn', ann:{t:'Physical page allocator',b:'freerange(end, PHYSTOP) builds kmem.freelist. Adds ~32,768 free 4KB pages. kalloc() is now available.'}},
+      {l:'    kvminit();', cls:'t-fn', ann:{t:'Build kernel page table',b:'kvmmake() creates Sv39 page table: maps UART, PLIC, VirtIO, kernel text(R/X), data(R/W), TRAMPOLINE. Also calls proc_mapstacks() to allocate 64 kernel stacks.'}},
+      {l:'    kvminithart();', cls:'t-fn', ann:{t:'⚡ PAGING TURNS ON',b:'csrw satp, kernel_pagetable_ppn | Sv39_MODE. sfence.vma. From this instruction onward, all memory accesses go through the page table. VA≠PA for non-direct-mapped regions.'}},
+      {l:'    procinit();', cls:'t-fn'},
+      {l:'    trapinit();', cls:'t-fn'},
+      {l:'    trapinithart();', cls:'t-fn', ann:{t:'stvec = kernelvec',b:'kernelvec (in kernelvec.S) saves registers and calls kerneltrap(). This is the trap handler for while the CPU is in kernel mode.'}},
+      {l:'    plicinit();', cls:'t-fn'},
+      {l:'    plicinithart();', cls:'t-fn'},
+      {l:'    binit();', cls:'t-fn'},
+      {l:'    iinit();', cls:'t-fn'},
+      {l:'    fileinit();', cls:'t-fn'},
+      {l:'    virtio_disk_init();', cls:'t-fn'},
+      {l:'    userinit();', cls:'t-fn', ann:{t:'Create PID 1',b:'Allocates proc slot, user page table, trapframe. Loads initcode at VA 0x0. Sets context.ra=forkret, context.sp=KSTACK(0)+PGSIZE.'}},
+      {l:'    __sync_synchronize();', cls:'t-fn', ann:{t:'Memory barrier',b:'Ensures all stores from hart 0 are visible to other harts before started=1 is written. Maps to: fence iorw, iorw in RISC-V.'}},
+      {l:'    started = 1;', cls:'', ann:{t:'Release harts 1-7',b:'Harts 1-7 exit their spin loop after seeing this. __sync_synchronize() on both sides ensures they see ALL of hart 0\'s initialization.'}},
+      {l:'  } else {', cls:''},
+      {l:'    while(started == 0);', cls:'', ann:{t:'Harts 1-7 spin here',b:'Each secondary hart waits until hart 0 has built the page table, allocated kernel stacks, and signaled completion. Safe to spin because interrupts are off.'}},
+      {l:'    __sync_synchronize();', cls:'t-fn'},
+      {l:'    kvminithart();', cls:'t-fn', ann:{t:'Each hart loads its own satp',b:'CSRs are per-hart. Even though hart 0 already called this, each secondary hart must write its own satp CSR with the kernel page table.'}},
+      {l:'    trapinithart();', cls:'t-fn'},
+      {l:'    plicinithart();', cls:'t-fn'},
+      {l:'  }', cls:''},
+      {l:'  scheduler();', cls:'t-fn', ann:{t:'Never returns',b:'All harts enter an infinite loop: find RUNNABLE process → swtch() → process runs → yields back. Hart 0\'s first swtch() goes to PID 1 (forkret).'}},
+      {l:'}', cls:''},
+    ],
+    annotations:[
+      {line:0,title:'started: volatile synchronization',body:'The volatile keyword prevents the compiler from optimizing away the spin-check loop. Without it, the compiler might cache the value and loop forever.'},
+      {line:10,title:'kvminithart() — The Moment Paging Starts',body:'After this call, every load/store goes through the Sv39 page table. The kernel is direct-mapped so code continues working, but unmapped accesses now fault.'},
+      {line:21,title:'__sync_synchronize()',body:'GCC builtin that generates a full memory fence (fence iorw,iorw). Required by RISC-V\'s relaxed memory model to ensure stores from one hart are visible to others.'},
+      {line:24,title:'Secondary Hart Wait',body:'Secondary harts must not call kvminithart() before the page table is built. They must not call plicinithart() before plicinit() is done. This synchronization prevents all that.'},
+    ]
+  },
+  tramp: {
+    name:'kernel/trampoline.S', color:'#2ec49a',
+    code:[
+      {l:'.section trampsec  # placed on its own 4KB page', cls:'t-dir'},
+      {l:'.globl trampoline', cls:'t-dir'},
+      {l:'trampoline:', cls:'t-lbl', ann:{t:'Trampoline page start',b:'The linker places this at a 4KB boundary. kernel.ld asserts it is exactly one page (1 page = 4096 bytes). Mapped at MAXVA-PGSIZE in every address space.'}},
+      {l:'.align 4', cls:'t-dir'},
+      {l:'.globl uservec', cls:'t-dir'},
+      {l:'uservec:', cls:'t-lbl', ann:{t:'User trap entry',b:'stvec is set to point here before returning to user space. When ecall fires, CPU jumps to uservec in S-mode but with the user page table still loaded.'}},
+      {l:'  csrw sscratch, a0', cls:'t-csr', ann:{t:'Save a0 temporarily',b:'sscratch is a scratch register. We need a0 to address TRAPFRAME, so save the user\'s a0 here first. Restored later.'}},
+      {l:'  li a0, TRAPFRAME   # load TRAPFRAME address', cls:'t-reg', ann:{t:'TRAPFRAME address',b:'TRAPFRAME is a fixed VA (MAXVA-2*PGSIZE) mapped in every user page table. Loading it into a0 gives us a base to save all registers.'}},
+      {l:'  sd ra, 40(a0)  # save user registers...', cls:''},
+      {l:'  sd sp, 48(a0)', cls:''},
+      {l:'  csrr t0, sscratch', cls:'t-csr'},
+      {l:'  sd t0, 112(a0) # save user a0', cls:''},
+      {l:'  ld sp, 8(a0)   # kernel_sp → KSTACK(p)', cls:'t-reg', ann:{t:'Switch to kernel stack',b:'trapframe.kernel_sp was filled by prepare_return() with KSTACK(p)+PGSIZE. After this, sp points to the top of the process\'s kernel stack.'}},
+      {l:'  ld tp, 32(a0)  # kernel_hartid', cls:''},
+      {l:'  ld t0, 16(a0)  # kernel_trap = usertrap', cls:''},
+      {l:'  ld t1, 0(a0)   # kernel_satp', cls:''},
+      {l:'  sfence.vma zero, zero', cls:'t-cmt'},
+      {l:'  csrw satp, t1  # ← switch to kernel page table', cls:'t-csr', ann:{t:'THE critical instruction',b:'After this, satp holds the kernel page table. The next instruction must be valid in kernel VA space too — which is why TRAMPOLINE is mapped at the same VA in both spaces.'}},
+      {l:'  sfence.vma zero, zero', cls:'t-cmt'},
+      {l:'  jalr t0         # call usertrap()', cls:'t-fn'},
+    ],
+    annotations:[
+      {line:2,title:'trampsec section',body:'Placed in its own section so kernel.ld can align it to a page boundary and verify its size. The kernel maps the physical page at TRAMPOLINE (MAXVA-PGSIZE) in every VA space.'},
+      {line:6,title:'uservec runs on user page table',body:'When this code runs, satp still has the user page table. That\'s why TRAMPOLINE must be mapped (without PTE_U) in user VA space — so this code can execute.'},
+      {line:12,title:'kernel_sp switch',body:'The first thing we do after saving user regs is switch sp to the kernel stack. Before this point, we have no stack for the kernel — we work purely through registers.'},
+      {line:17,title:'satp switch — no-gap guarantee',body:'After csrw satp, t1: the PC is still pointing into TRAMPOLINE. This works ONLY because TRAMPOLINE maps to the same physical page at the same VA in both address spaces.'},
+    ]
+  },
+  swtch: {
+    name:'kernel/swtch.S', color:'#9b6af0',
+    code:[
+      {l:'# Context switch: swtch(old *context, new *context)', cls:'t-cmt'},
+      {l:'# Saves callee-saved regs into *old.', cls:'t-cmt'},
+      {l:'# Restores callee-saved regs from *new.', cls:'t-cmt'},
+      {l:'# Returns in new context (via ret → new.ra).', cls:'t-cmt'},
+      {l:'.globl swtch', cls:'t-dir'},
+      {l:'swtch:', cls:'t-lbl', ann:{t:'The context switch',b:'Called as swtch(&old, &new). Saves the 14 callee-saved registers into old, loads them from new, and returns. The ret jumps to new.ra — which for a new process is forkret.'}},
+      {l:'  sd ra, 0(a0)    # save return address', cls:'t-reg', ann:{t:'Save ra (return address)',b:'When scheduler calls swtch(), ra holds the return address back into scheduler. Saved to cpu->context so we can return to scheduler when the process yields.'}},
+      {l:'  sd sp, 8(a0)    # save stack pointer', cls:'t-reg', ann:{t:'Save sp',b:'The current stack pointer (either stack0 for scheduler, or KSTACK(p) for a process). Must be saved to resume on the correct stack.'}},
+      {l:'  sd s0, 16(a0)', cls:''},
+      {l:'  sd s1, 24(a0)   # ... callee-saved regs s0-s11', cls:''},
+      {l:'  sd s11, 104(a0)', cls:''},
+      {l:'', cls:''},
+      {l:'  ld ra, 0(a1)    # restore new.ra', cls:'t-reg', ann:{t:'Load new return address',b:'For PID 1 on first run: new.ra = forkret. ret will jump there. For a yielded process: new.ra = wherever swtch was called from in the process.'}},
+      {l:'  ld sp, 8(a1)    # restore new.sp', cls:'t-reg', ann:{t:'Load new stack pointer',b:'For PID 1: KSTACK(0)+PGSIZE. This switches the active stack from stack0 (scheduler) to the process kernel stack. Immediate effect!'}},
+      {l:'  ld s0, 16(a1)', cls:''},
+      {l:'  ld s11, 104(a1) # ... restore s0-s11', cls:''},
+      {l:'', cls:''},
+      {l:'  ret              # jump to new.ra = forkret', cls:'t-fn', ann:{t:'The actual switch',b:'ret = jalr x0, ra, 0. Jumps to the restored ra value. For a new process this is forkret(). sp is already the process kernel stack. Context switch complete.'}},
+    ],
+    annotations:[
+      {line:5,title:'Only 14 registers saved',body:'swtch() saves only callee-saved registers (ra, sp, s0-s11). Caller-saved registers (a0-a7, t0-t6) are not preserved because the C ABI says callers must save them if needed.'},
+      {line:6,title:'ra — the magic return',body:'ra holds the address that ret jumps to. By storing forkret in p->context.ra during allocproc(), we make swtch() "return" to forkret on the first scheduling of a new process.'},
+      {line:13,title:'sp switch is immediate',body:'After ld sp, 8(a1), all subsequent stack operations use the new stack pointer. This includes the ret instruction\'s implicit use of the stack.'},
+      {line:17,title:'ret completes the switch',body:'From ret onward, we are fully in the new context: new stack, new ra, new saved registers. The old context is faithfully saved and can be resumed later.'},
+    ]
+  }
+};
+
+function showSource(id) {
+  document.querySelectorAll('.src-file-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('srcbtn-'+id).classList.add('active');
+  const f = sourceFiles[id];
+  const cv = document.getElementById('source-code-view');
+  cv.innerHTML = `<div style="padding:8px 16px 6px;background:rgba(0,0,0,0.3);border-bottom:1px solid var(--border);font-size:11px;font-family:monospace;color:var(--text3);display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:1;"><div style="width:8px;height:8px;border-radius:50%;background:${f.color};"></div>${f.name}</div>
+  <div style="padding:8px 0;">
+  ${f.code.map((l,i) => {
+    const hasAnn = !!l.ann;
+    const esc = l.l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="pg-line" style="${hasAnn?'border-left:2px solid '+f.color+';cursor:pointer;':''}" onclick="${hasAnn?`showAnn('${id}',${i})`:''}">
+      <span class="pg-lnum" style="${hasAnn?'color:'+f.color+';':''}">${i+1}</span>
+      <span class="pg-lcode ${l.cls}">${esc}</span>
+      ${hasAnn?`<span style="margin-left:auto;padding:0 10px;font-size:10px;color:${f.color};opacity:0.7;">● note</span>`:''}
+    </div>`;
+  }).join('')}
+  </div>`;
+
+  const av = document.getElementById('source-annotations');
+  av.innerHTML = `<div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text4);margin-bottom:12px;">Annotations</div>
+  ${f.annotations.map(a => `<div class="annotation-card">
+    <div class="ann-line">Line ${a.line+1}</div>
+    <div class="ann-title">${a.title}</div>
+    <div class="ann-body">${a.body}</div>
+  </div>`).join('')}`;
+}
+
+function showAnn(fileId, lineIdx) {
+  const f = sourceFiles[fileId];
+  const l = f.code[lineIdx];
+  if (!l.ann) return;
+  const av = document.getElementById('source-annotations');
+  av.scrollTo({top:0, behavior:'smooth'});
+  const existing = document.getElementById('dynamic-ann');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'dynamic-ann';
+  el.className = 'annotation-card';
+  el.style.cssText = `border-color:${f.color};background:${f.color}11;`;
+  el.innerHTML = `<div class="ann-line" style="color:${f.color};">Line ${lineIdx+1} — clicked</div><div class="ann-title">${l.ann.t}</div><div class="ann-body">${l.ann.b}</div>`;
+  av.insertBefore(el, av.firstChild);
+}
+
+showSource('entry');
+
+/* ── CSR Reference ─────────────────────────────────────────── */
+const csrData = [
+  {name:'mstatus',full:'Machine Status Register',level:'m',tag:'timer',
+   desc:'Aggregates many M-mode status bits. The most critical during boot: MPP (bits 12:11) which mret reads to determine the return privilege level.',
+   usages:['MPP=01 (S): set in start() so mret drops to Supervisor mode','MPIE: previous interrupt enable state','MIE: current M-mode interrupt enable']},
+  {name:'mepc',full:'Machine Exception Program Counter',level:'m',
+   desc:'Holds the address to return to when mret executes. xv6 sets mepc = &main in start() so that mret jumps directly into main().',
+   usages:['w_mepc(&main) in start()', 'mret loads PC from mepc', 'M-mode only']},
+  {name:'medeleg',full:'Machine Exception Delegation',level:'m',
+   desc:'Bitmask: bit N=1 means exception N is routed to S-mode trap handler instead of M-mode. xv6 sets 0xFFFF to delegate all 16 exception types.',
+   usages:['w_medeleg(0xffff) in start()', 'Bit 8 = ecall from U-mode', 'Bit 13 = load page fault']},
+  {name:'mideleg',full:'Machine Interrupt Delegation',level:'m',
+   desc:'Same as medeleg but for interrupts. 0xFFFF routes all interrupts to S-mode. Combined with medeleg, the S-mode kernel is fully self-contained.',
+   usages:['w_mideleg(0xffff) in start()', 'Bit 9 = S-mode external interrupt', 'Bit 5 = S-mode timer interrupt']},
+  {name:'mhartid',full:'Machine Hart ID',level:'m',
+   desc:'Read-only CSR identifying the current hart (0–7). Only accessible in M-mode. xv6 reads it in start() and saves to the tp register for later use.',
+   usages:['Read in _entry: csrr a1, mhartid', 'Stored to tp: w_tp(r_mhartid())', 'cpuid() reads tp in S/U-mode']},
+  {name:'pmpaddr0 / pmpcfg0',full:'Physical Memory Protection',level:'m',tag:'timer',
+   desc:'PMP grants or restricts physical memory access to lower-privilege modes. Without it, S-mode cannot access any RAM. xv6 grants full access.',
+   usages:['pmpaddr0 = 0x3FFFFFFFFFFFFFF (max)', 'pmpcfg0 = 0xF = R/W/X + TOR mode', 'Set once in start(), never changed']},
+  {name:'satp',full:'Supervisor Address Translation and Protection',level:'s',
+   desc:'Controls virtual memory. MODE field (bits 63:60): 0=bare (off), 8=Sv39. PPN field: root page table physical page number. Per-hart CSR.',
+   usages:['w_satp(0) in start() — paging off', 'w_satp(MAKE_SATP(kpgtbl)) in kvminithart()', 'Each hart writes its own satp']},
+  {name:'stvec',full:'Supervisor Trap Vector Base Address',level:'s',
+   desc:'Address the CPU jumps to when a trap occurs in S-mode or U-mode. xv6 uses two values: kernelvec (while in kernel) and uservec in trampoline (before returning to user).',
+   usages:['trapinithart(): stvec = kernelvec', 'prepare_return(): stvec = TRAMPOLINE+offset', 'Must be 4-byte aligned']},
+  {name:'sepc',full:'Supervisor Exception Program Counter',level:'s',
+   desc:'Saved PC when a trap enters S-mode. sret restores PC from sepc. xv6 sets sepc=0 in prepare_return() so sret returns to user VA 0x0 (initcode).',
+   usages:['Set by CPU on ecall/exception', 'prepare_return(): w_sepc(p->trapframe->epc)', 'sret: PC ← sepc']},
+  {name:'sstatus',full:'Supervisor Status Register',level:'s',
+   desc:'S-mode status. SPP (bit 8): return privilege for sret (0=User, 1=Supervisor). SPIE (bit 5): interrupts-were-enabled. SIE (bit 1): S-mode interrupt enable.',
+   usages:['sstatus.SPP=0 before sret → U-mode', 'sstatus.SPIE=1 → enable irqs in user', 'Set in prepare_return()']},
+  {name:'stimecmp',full:'Supervisor Timer Compare',level:'s',tag:'timer',
+   desc:'SSTC extension. When time >= stimecmp, a supervisor-mode timer interrupt fires. xv6 sets this in timerinit() for the first interrupt, then clockintr() advances it.',
+   usages:['timerinit(): stimecmp = time + 1000000', 'clockintr(): advances for next tick', 'Enables SSTC via menvcfg.STCE']},
+  {name:'sscratch',full:'Supervisor Scratch Register',level:'s',
+   desc:'General-purpose scratch register for S-mode. xv6\'s trampoline uses it to temporarily hold the user\'s a0 register while loading TRAPFRAME\'s address into a0.',
+   usages:['uservec: csrw sscratch, a0 (save user a0)', 'uservec: csrr t0, sscratch (restore)', 'Temporary only — no persistent state']},
+];
+
+function buildCSRCards() {
+  const c = document.getElementById('csr-cards');
+  c.innerHTML = csrData.map(r => `<div class="csr-card" data-level="${r.level}" data-tag="${r.tag||''}">
+    <div class="csr-card-name" style="color:${r.level==='m'?'var(--m-color)':'var(--s-color)'};">${r.name}</div>
+    <div class="csr-card-full">${r.full}</div>
+    <div style="margin-bottom:8px;"><span class="badge badge-${r.level}" style="margin-right:4px;">${r.level.toUpperCase()}-mode</span>${r.tag?`<span class="badge badge-y">${r.tag}</span>`:''}</div>
+    <div class="csr-card-desc">${r.desc}</div>
+    <div class="csr-card-usage">${r.usages.map(u=>`<div class="csr-usage-row"><span style="color:var(--s-color);margin-right:4px;">›</span>${u}</div>`).join('')}</div>
+  </div>`).join('');
+}
+buildCSRCards();
+
+function csrFilter(filter, el) {
+  document.querySelectorAll('.csr-filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.csr-card').forEach(c => {
+    const show = filter==='all' || c.dataset.level===filter || c.dataset.tag===filter;
+    c.classList.toggle('hidden', !show);
+  });
+}
+
+/* ── Glossary ─────────────────────────────────────────────────── */
+const glossaryTerms = [
+  {term:'CSR', def:'Control and Status Register. Special registers in RISC-V accessed via csr* instructions (csrr, csrw, csrs, csrc). Organized by privilege level.', tag:'riscv'},
+  {term:'hart', def:'Hardware Thread. RISC-V\'s term for an independent hardware execution context (CPU core or SMT thread). xv6 supports up to NCPU=8 harts.', tag:'riscv'},
+  {term:'M-mode', def:'Machine Mode — highest RISC-V privilege. Has full hardware access. Used only during early boot (_entry, start()) then permanently exited via mret.', tag:'privilege'},
+  {term:'S-mode', def:'Supervisor Mode — kernel privilege. Controls page tables (satp) and trap vectors (stvec). xv6 kernel runs entirely here.', tag:'privilege'},
+  {term:'U-mode', def:'User Mode — least privileged. Cannot access CSRs or physical memory directly. System calls go through ecall → trampoline → kernel.', tag:'privilege'},
+  {term:'mret', def:'Machine Return instruction. Simultaneously: sets PC=mepc, switches privilege to mstatus.MPP, clears MPP. The only way to exit M-mode in xv6.', tag:'instruction'},
+  {term:'sret', def:'Supervisor Return. Sets PC=sepc, switches privilege to sstatus.SPP (0=User), enables interrupts from SPIE. Used in trampoline userret.', tag:'instruction'},
+  {term:'ecall', def:'Environment Call. Raises a synchronous trap to the next higher privilege level. User processes use ecall for all system calls.', tag:'instruction'},
+  {term:'satp', def:'Supervisor Address Translation and Protection CSR. Controls Sv39 paging. Set to 0 (off) until kvminithart() loads the kernel page table.', tag:'csr'},
+  {term:'stvec', def:'Supervisor Trap Vector. Address the CPU jumps to on trap. xv6 uses kernelvec (kernel traps) and uservec/TRAMPOLINE (user traps).', tag:'csr'},
+  {term:'mepc', def:'Machine Exception PC. mret restores PC from here. xv6 sets mepc=&main in start() to jump to main() on mret.', tag:'csr'},
+  {term:'sepc', def:'Supervisor Exception PC. Set by CPU on trap entry. sret restores PC from sepc. Set to 0 so sret enters initcode at VA 0.', tag:'csr'},
+  {term:'mstatus', def:'Machine Status. MPP field (bits 12:11) determines return privilege for mret. xv6 sets MPP=01 (S-mode) in start().', tag:'csr'},
+  {term:'PMP', def:'Physical Memory Protection. M-mode must explicitly grant S/U-mode access to RAM. Without it, S-mode cannot read or write any memory.', tag:'riscv'},
+  {term:'Sv39', def:'39-bit virtual address scheme for RISC-V. 3-level page table, 512 GB VA space, 4KB pages. Used by xv6. satp.MODE=8 enables it.', tag:'paging'},
+  {term:'KERNBASE', def:'0x80000000 — base of kernel RAM. QEMU loads the kernel ELF here. kernel.ld places _entry at exactly this address.', tag:'address'},
+  {term:'PHYSTOP', def:'0x88000000 — top of usable RAM (KERNBASE + 128 MB). kinit() frees all pages between end and PHYSTOP.', tag:'address'},
+  {term:'TRAMPOLINE', def:'MAXVA - PGSIZE. A 4KB page mapped at the same VA in every address space. Contains uservec and userret code for trap entry/exit.', tag:'address'},
+  {term:'TRAPFRAME', def:'MAXVA - 2*PGSIZE. Per-process page storing all 32 user registers during trap handling. Mapped without PTE_U (kernel-only).', tag:'address'},
+  {term:'KSTACK(p)', def:'Per-process kernel stack. VA = TRAMPOLINE - (p+1)*2*PGSIZE. 4KB surrounded by unmapped guard pages. Allocated by procinit().', tag:'address'},
+  {term:'stack0', def:'32KB array in .bss used as the boot stack. One 4KB slice per hart: sp = stack0 + (hartid+1)*4096. Used from _entry until first swtch().', tag:'boot'},
+  {term:'swtch', def:'Context switch in swtch.S. Saves 14 callee-saved registers to *old, loads from *new, returns via restored ra. The actual CPU context switch.', tag:'boot'},
+  {term:'forkret', def:'First function executed by any new process after swtch() picks it up. Releases proc lock, initializes FS on first call, then calls prepare_return().', tag:'boot'},
+  {term:'kalloc', def:'Physical page allocator. Returns one free 4KB page from kmem.freelist. Initialized by kinit() from end to PHYSTOP.', tag:'memory'},
+  {term:'kinit', def:'Initializes the physical page allocator by calling freerange(end, PHYSTOP), building the kmem.freelist. Called first in main().', tag:'memory'},
+  {term:'kvminit', def:'Builds the kernel Sv39 page table. Maps all devices, kernel text/data/bss, TRAMPOLINE, and 64 per-process kernel stacks.', tag:'paging'},
+  {term:'kvminithart', def:'Writes satp CSR with kernel page table. The instruction that turns on paging. Called per-hart (each hart has its own satp).', tag:'paging'},
+  {term:'userinit', def:'Creates PID 1. Allocates proc slot, page table, trapframe. Loads initcode at user VA 0. Sets epc=0, sp=PGSIZE. Marks RUNNABLE.', tag:'boot'},
+  {term:'initcode', def:'Tiny inline byte array in kernel source. First user-space code, at VA 0x0. Calls exec("/init") via ecall.', tag:'boot'},
+  {term:'SSTC', def:'Supervisor Stimecmp Timer Compare. RISC-V extension letting S-mode program stimecmp directly. Enabled via menvcfg.STCE in timerinit().', tag:'timer'},
+  {term:'PLIC', def:'Platform-Level Interrupt Controller. Routes device IRQs to harts. Configured by plicinit() and per-hart plicinithart().', tag:'hardware'},
+  {term:'direct-map', def:'Kernel VA space design where VA = PA for all kernel/device addresses. Simplifies pointer usage — no translation needed in kernel code.', tag:'paging'},
+];
+
+function buildGlossary() {
+  const g = document.getElementById('glossary-grid');
+  const tags = {riscv:'badge-s', privilege:'badge-m', instruction:'badge-g', csr:'badge-y', paging:'badge-g', address:'badge-s', boot:'badge-m', memory:'badge-g', timer:'badge-y', hardware:'badge-m'};
+  g.innerHTML = glossaryTerms.map(t => `<div class="glossary-item" data-term="${t.term.toLowerCase()} ${t.def.toLowerCase()}">
+    <div class="gi-term">${t.term}</div>
+    <div class="gi-def">${t.def}</div>
+    <span class="gi-tag ${tags[t.tag]||'badge-s'}" style="border-color:currentColor;">${t.tag}</span>
+  </div>`).join('');
+}
+buildGlossary();
+
+function filterGlossary(q) {
+  const v = q.toLowerCase();
+  document.querySelectorAll('.glossary-item').forEach(el => {
+    el.classList.toggle('hidden', v.length > 0 && !el.dataset.term.includes(v));
+  });
+}
+
+/* ── Quiz ────────────────────────────────────────────────────── */
+const questions = [
+  {q:'What physical address does QEMU jump all harts to at startup?', opts:['0x00000000','0x00001000','0x80000000','0x80001000'], ans:2, exp:'QEMU loads the kernel ELF at 0x80000000 (KERNBASE) because kernel.ld sets ". = 0x80000000". The boot ROM at 0x1000 performs the actual load then resets all hart PCs to KERNBASE.'},
+  {q:'Which formula does _entry use to compute the per-hart boot stack pointer?', opts:['sp = stack0 + hartid × 4096','sp = stack0 + (hartid+1) × 4096','sp = stack0 + hartid × 8192','sp = stack0 - hartid × 4096'], ans:1, exp:'The +1 offset ensures no off-by-one: hartid=0 gives sp = stack0+4096, pointing to the top of the first 4KB slice. Stacks grow downward, so sp always starts at the high end of its slice.'},
+  {q:'What does mstatus.MPP = 01 mean in the context of start()?', opts:['Enable Machine-mode interrupts','Set the return address to main()','When mret executes, switch to Supervisor mode','Disable paging for the kernel'], ans:2, exp:'MPP (Machine Previous Privilege) is bits [12:11] of mstatus. mret reads this field and switches to the indicated privilege. 01 = Supervisor. 00=User, 11=Machine. xv6 sets it in start() to drop to S-mode.'},
+  {q:'Why does start() set satp = 0?', opts:['To initialize the kernel page table','To disable virtual memory until kvminithart() runs','To grant S-mode access to all physical memory','To delegate exceptions to Supervisor mode'], ans:1, exp:'satp=0 (Bare mode) disables address translation: VA=PA. This is intentional — the kernel page table is not built yet (kvminit runs in main()). The direct-mapped design means code still works with paging off.'},
+  {q:'What is the purpose of the PMP configuration in start()?', opts:['Set the trap vector for Supervisor mode','Build the kernel page table','Grant Supervisor mode read/write/execute access to all physical RAM','Configure the PLIC interrupt priorities'], ans:2, exp:'Physical Memory Protection. RISC-V requires M-mode to explicitly grant physical memory access to less-privileged modes. Without pmpaddr0/pmpcfg0, S-mode cannot access ANY memory — every load/store would fault.'},
+  {q:'Which instruction ends start() and what does it do?', opts:['sret — drops to User mode','mret — drops to Supervisor mode, jumps to main()','ecall — triggers a system call','ret — returns to _entry'], ans:1, exp:'mret atomically: sets PC=mepc (which was set to &main), switches privilege to mstatus.MPP (=Supervisor), and clears MPP. This is the only M→S transition in xv6. M-mode is never re-entered.'},
+  {q:'At what point during main() does virtual addressing turn on?', opts:['At the start of main()','After kinit() allocates free pages','During kvminithart() when satp is written','After all harts set started=1'], ans:2, exp:'kvminithart() writes satp with the kernel page table PPN and Sv39 mode bit, then executes sfence.vma. From that instruction onward, every memory access goes through the page table walker.'},
+  {q:'What does the __sync_synchronize() before "started=1" ensure?', opts:['That the timer is initialized','That all of hart 0\'s memory writes are visible to other harts','That paging is enabled on all harts','That PID 1 is in RUNNABLE state'], ans:1, exp:'RISC-V has a relaxed memory model — stores from one hart are not immediately visible to others. __sync_synchronize() generates a fence instruction that orders all pending stores, ensuring harts 1-7 see hart 0\'s complete initialization.'},
+  {q:'What is stored in context.ra when allocproc() creates a new process?', opts:['&main','&scheduler','&forkret','&_entry'], ans:2, exp:'swtch() restores callee-saved registers and returns via ret (= jalr ra). By setting context.ra=forkret, allocproc() makes the first scheduling of any process land in forkret(), which then calls prepare_return() and returns to user space.'},
+  {q:'Why is the TRAMPOLINE page mapped at the same VA in both kernel and user address spaces?', opts:['To allow user code to read kernel data','So that the trap handler code remains executable after switching satp from user to kernel page table','To avoid allocating extra physical pages','So that KSTACK(p) addresses are consistent'], ans:1, exp:'When uservec switches satp, the PC still points into TRAMPOLINE VA. If the kernel page table didn\'t also map TRAMPOLINE at that exact VA, the next instruction would fault. Identity of VA is the key insight.'},
+  {q:'What does uservec do immediately after saving all user registers to TRAPFRAME?', opts:['Calls usertrap() directly','Switches satp to the kernel page table','Disables interrupts','Calls forkret()'], ans:1, exp:'uservec loads kernel_sp (KSTACK+PGSIZE), kernel_satp, and kernel_trap from TRAPFRAME, then does sfence.vma + csrw satp, t1 (switch to kernel page table) + sfence.vma, and finally jalr t0 (call usertrap()).'},
+  {q:'What is the role of the sscratch CSR in the trampoline?', opts:['Stores the kernel stack pointer permanently','Temporarily holds the user\'s a0 register while a0 is used to address TRAPFRAME','Stores the previous privilege mode','Holds the address of the kernel page table'], ans:1, exp:'uservec needs a0 to address TRAPFRAME (via li a0, TRAPFRAME) but must first save the user\'s a0. sscratch is the only CSR accessible without knowing its VA. The sequence: csrw sscratch, a0 → li a0, TRAPFRAME → save regs → csrr t0, sscratch → sd t0, 112(a0).'},
+  {q:'What registers does swtch() save and restore?', opts:['All 32 RISC-V registers','Only caller-saved registers (a0-a7, t0-t6)','Only callee-saved registers (ra, sp, s0-s11)','Only ra and sp'], ans:2, exp:'swtch() saves ra, sp, s0-s11 — 14 total callee-saved registers. Caller-saved registers (a-regs, t-regs) are not saved because, by the C ABI, callers save them before any function call.'},
+  {q:'What is the user stack pointer (sp) set to for PID 1 in userinit()?', opts:['0x0 (VA 0)','0x1000 (top of first page = PGSIZE)','KSTACK(0)','TRAMPOLINE'], ans:1, exp:'trapframe->sp = PGSIZE = 4096 = 0x1000. The user stack starts at the top of the first page and grows downward. initcode is at VA 0 (the text area), so the stack gets its own space above the code.'},
+  {q:'What does initcode (first user code at VA 0x0) do?', opts:['Opens /dev/console','Directly calls main()','Executes exec("/init") via ecall','Initializes the file system'], ans:2, exp:'initcode is a tiny binary (inline in the kernel source). It loads SYS_exec into a7, sets up "/init" arguments, and executes ecall. The kernel handles it as a syscall, loads /init from disk, and replaces the process image.'},
+];
+
+let quizAnswered = new Array(questions.length).fill(null);
+let correct = 0, wrong = 0;
+
+function buildQuiz() {
+  const c = document.getElementById('quiz-container');
+  c.innerHTML = questions.map((q,i) => `
+    <div class="quiz-q" id="qq-${i}">
+      <div class="qq-num">Question ${i+1} of ${questions.length}</div>
+      <div class="qq-text">${q.q}</div>
+      <div class="qq-options">
+        ${q.opts.map((o,j) => `<div class="qq-opt" id="qqopt-${i}-${j}" onclick="answerQuiz(${i},${j})">
+          <div class="qq-opt-letter">${'ABCD'[j]}</div>${o}
+        </div>`).join('')}
+      </div>
+      <div class="qq-explanation" id="qqexp-${i}">${q.exp}</div>
+    </div>`).join('');
+}
+
+function answerQuiz(qi, ai) {
+  if (quizAnswered[qi] !== null) return;
+  quizAnswered[qi] = ai;
+  const q = questions[qi];
+  const isCorrect = ai === q.ans;
+  if (isCorrect) correct++; else wrong++;
+  document.getElementById('qq-' + qi).classList.add(isCorrect ? 'correct' : 'wrong');
+  document.querySelectorAll(`[id^="qqopt-${qi}-"]`).forEach((el,j) => {
+    if (j === q.ans) el.classList.add('correct-ans');
+    else if (j === ai && !isCorrect) el.classList.add('wrong-ans');
+  });
+  const exp = document.getElementById('qqexp-' + qi);
+  exp.classList.add('shown');
+  exp.style.cssText = isCorrect ? 'background:rgba(76,175,116,0.08);border:1px solid rgba(76,175,116,0.2);border-radius:8px;' : 'background:rgba(224,80,80,0.08);border:1px solid rgba(224,80,80,0.2);border-radius:8px;';
+  updateScore();
+}
+
+function updateScore() {
+  const total = quizAnswered.filter(a => a !== null).length;
+  document.getElementById('qs-correct').textContent = correct;
+  document.getElementById('qs-wrong').textContent = wrong;
+  document.getElementById('qs-total').textContent = total;
+  document.getElementById('qs-pct').textContent = total > 0 ? Math.round(correct/total*100) + '%' : '—';
+}
+
+function resetQuiz() {
+  quizAnswered = new Array(questions.length).fill(null);
+  correct = 0; wrong = 0;
+  buildQuiz();
+  updateScore();
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
